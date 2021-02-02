@@ -19,6 +19,7 @@
 
 #include "image.hpp"
 #include "ImgConverter.hpp"
+#include <filesystem>
 #include <string>
 #include <algorithm>
 #include <cstdio>
@@ -28,6 +29,7 @@
 #include <chrono>
 #include <cmath>
 #include <cassert>
+#include <limits>
 
 enum OP_TYPE
 {
@@ -611,11 +613,11 @@ public:
 		CloseImages();
 	}
 
-	const wchar_t *GetFileName(int pane)
+    std::filesystem::path GetFileName(const int pane)
 	{
 		if (pane < 0 || pane >= m_nImages)
-			return NULL;
-		return m_filename[pane].c_str();
+            return {};
+		return m_filename[pane];
 	}
 
 	int GetPaneCount() const
@@ -1142,7 +1144,7 @@ public:
 		}
 	}
 
-	bool OpenImages(int nImages, const wchar_t * const filename[3])
+	bool OpenImages(int nImages, const std::filesystem::path filename[])
 	{
 		CloseImages();
 		m_nImages = nImages;
@@ -1167,7 +1169,7 @@ public:
 		return true;
 	}
 
-	bool SaveDiffImageAs(int pane, const wchar_t *filename)
+	bool SaveDiffImageAs(int pane, const std::filesystem::path &filename)
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
@@ -1323,7 +1325,8 @@ public:
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return;
-		int minx = INT_MAX, miny = INT_MAX;
+        int minx = std::numeric_limits<int>::max();
+        int miny = std::numeric_limits<int>::max();
 		Point<int> offset[3];
 		for (int i = 0; i < m_nImages; ++i)
 		{
@@ -1489,9 +1492,9 @@ protected:
 			else
 			{
 				m_imgOrigMultiPage[i].close();
-				if (ImgConverter::isSupportedImage(m_filename[i].c_str()))
+				if (ImgConverter::isSupportedImage(m_filename[i]))
 				{
-					if (m_imgConverter[i].load(m_filename[i].c_str()))
+					if (m_imgConverter[i].load(m_filename[i]))
 						m_imgConverter[i].render(m_imgOrig[i], 0, m_vectorImageZoomRatio);
 				}
 				if (!m_imgConverter[i].isValid())
@@ -2153,7 +2156,7 @@ protected:
 	Image m_imgDiff[3];
 	Image m_imgDiffMap;
 	ImgConverter m_imgConverter[3];
-	std::wstring m_filename[3];
+	std::filesystem::path m_filename[3];
 	bool m_showDifferences;
 	bool m_blinkDifferences;
 	float m_vectorImageZoomRatio;

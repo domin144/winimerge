@@ -5,26 +5,22 @@
 #include "ImgDiffBuffer.hpp"
 #endif
 #include <iostream>
-#include <clocale>
+#include <filesystem>
 
 int main(int argc, char* argv[])
 {
 #ifndef USE_WINIMERGELIB
 	CImgDiffBuffer buffer;
 #endif
-	wchar_t filenameW[2][260];
-	const wchar_t *filenames[2] = { filenameW[0], filenameW[1] };
 
 	if (argc < 3)
 	{
-		std::wcerr << L"usage: cmdidiff image_file1 image_file2" << std::endl;
+		std::cerr << "usage: cmdidiff image_file1 image_file2" << std::endl;
 		exit(1);
 	}
 
-	setlocale(LC_ALL, "");
-
-	mbstowcs(filenameW[0], argv[1], strlen(argv[1]) + 1);
-	mbstowcs(filenameW[1], argv[2], strlen(argv[2]) + 1);
+	std::locale::global(std::locale(""));
+	std::array<std::filesystem::path, 2> filenames{argv[1], argv[2]};
 
 #ifdef USE_WINIMERGELIB
 	IImgMergeWindow *pImgMergeWindow = WinIMerge_CreateWindowless();
@@ -41,14 +37,14 @@ int main(int argc, char* argv[])
 #else
 	FreeImage_Initialise();
 
-	if (!buffer.OpenImages(2, filenames))
+	if (!buffer.OpenImages(2, filenames.data()))
 	{
-		std::wcerr << L"cmdidiff: could not open files. (" << filenameW[0] << ", " << filenameW[1] << L")" << std::endl;
+		std::cerr << "cmdidiff: could not open files. (" << filenames[0] << ", " << filenames[1] << ")" << std::endl;
 		exit(1);
 	}
 
 	buffer.CompareImages();
-	buffer.SaveDiffImageAs(1, L"diff.png");
+	buffer.SaveDiffImageAs(1, "diff.png");
 	buffer.CloseImages();
 #endif
 

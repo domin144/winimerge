@@ -1,4 +1,5 @@
-#pragma once
+#ifndef IMGCONVERTER_HPP
+#define IMGCONVERTER_HPP
 
 #ifdef _WIN64
 #include <d2d1_3.h>
@@ -11,22 +12,27 @@
 #include "Win78Libraries.h"
 #endif
 
-#include "image.hpp"
+#ifdef WIN32
 #include <shlwapi.h>
 #include <gdiplus.h>
-#include <filesystem>
 
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "gdiplus") 
+#endif /* WIN32 */
+
+#include "image.hpp"
+#include <filesystem>
+#include <locale>
 
 struct ImageRenderer
 {
-	virtual bool load(const wchar_t *filename) = 0;
+	virtual bool load(const std::filesystem::path &filename) = 0;
 	virtual bool isValid() const = 0;
 	virtual void render(Image& img, int page, float zoom) = 0;
 	virtual unsigned getPageCount() const = 0;
 };
 
+#ifdef WIN32
 #ifdef _WIN64
 
 class PdfRenderer: public ImageRenderer
@@ -386,6 +392,8 @@ private:
 	unsigned m_imageHeight = 0;
 };
 
+#endif /* WIN32 */
+
 class ImgConverter
 {
 public:
@@ -398,23 +406,41 @@ public:
 		WMF
 	};
 
-	static ImageType getImageType(const wchar_t *filename)
+	static ImageType getImageType(const std::filesystem::path &filename)
 	{
-		std::wstring ext = std::filesystem::path(filename).extension().generic_wstring();
-		if (_wcsicmp(ext.c_str(), L".emf") == 0)
+		auto equalExtension = [](const std::string &ext, const std::string &extRef)
+		{
+			const auto locale = std::locale("C");
+			return std::equal(
+					ext.begin(),
+					ext.end(),
+					extRef.begin(),
+					extRef.end(),
+					[&locale](const auto &lhs, const auto &rhs)
+					{
+						return 
+								std::tolower(lhs, locale)
+								!= std::tolower(rhs, locale);
+					});
+		};
+
+		const std::string ext = filename.extension().generic_string();
+#ifdef WIN32
+		if (equalExtension(ext, ".emf"))
 			return ImageType::EMF;
-		else if (_wcsicmp(ext.c_str(), L".wmf") == 0)
+		else if (equalExtension(ext, ".wmf"))
 			return ImageType::WMF;
 #ifdef _WIN64
-		else if (_wcsicmp(ext.c_str(), L".pdf") == 0)
+		else if (equalExtension(ext, ".pdf")) == 0)
 			return ImageType::PDF;
-		else if (_wcsicmp(ext.c_str(), L".svg") == 0)
+		else if (equalExtension(ext, ".svg")) == 0)
 			return ImageType::SVG;
 #endif
-		return ImageType::NotSupported;
+#endif /* WIN32 */
+        return ImageType::NotSupported;
 	}
 
-	static bool isSupportedImage(const wchar_t *filename)
+	static bool isSupportedImage(const std::filesystem::path &filename)
 	{
 		return getImageType(filename) != ImageType::NotSupported;
 	}
@@ -424,10 +450,11 @@ public:
 		return (m_pRenderer != nullptr && m_pRenderer->isValid());
 	}
 
-	bool load(const wchar_t *filename)
+	bool load(const std::filesystem::path &filename)
 	{
 		switch (getImageType(filename))
 		{
+#ifdef WIN32
 #ifdef _WIN64
 		case ImageType::PDF:
 			m_pRenderer.reset(new PdfRenderer());
@@ -440,6 +467,7 @@ public:
 		case ImageType::WMF:
 			m_pRenderer.reset(new GdiPlusRenderer());
 			break;
+#endif /* WIN32 */
 		default:
 			return false;
 		}
@@ -465,3 +493,4 @@ private:
 	std::unique_ptr<ImageRenderer> m_pRenderer;
 };
 
+#endif /* IMGCONVERTER_HPP */

@@ -15,25 +15,72 @@
 //    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 /////////////////////////////////////////////////////////////////////////////
 
-#pragma once
-#pragma warning(disable: 4819)
+#ifndef IMAGE_HPP
+#define IMAGE_HPP
 
-#include "FreeImagePlus.h"
+#include <FreeImage.h>
+#include <FreeImagePlus.h>
 #include <algorithm>
+#include <cstdio>
+#include <fstream>
+#include <ios>
 #include <string>
 #include <map>
+#include <cstring>
+#include <filesystem>
 
-#ifndef _WIN32
-typedef fipImage fipWinImage;
-#endif
+inline FREE_IMAGE_FORMAT identifyFIF(const std::filesystem::path& path)
+{
+    return [](const auto* str) {
+        if constexpr (std::
+                          is_same_v<std::filesystem::path::value_type, wchar_t>)
+        {
+            return fipImage::identifyFIFU(str);
+        }
+        else
+        {
+            return fipImage::identifyFIF(str);
+        }
+    }(path.c_str());
+}
 
-class fipImageEx : public fipWinImage
+inline bool load(fipImage& image, const std::filesystem::path& path)
+{
+    return [&](const auto* str) {
+        if constexpr (std::
+                          is_same_v<std::filesystem::path::value_type, wchar_t>)
+        {
+            return image.loadU(str) == TRUE;
+        }
+        else
+        {
+            return image.load(str) == TRUE;
+        }
+    }(path.c_str());
+}
+
+inline bool save(fipImage& image, const std::filesystem::path& path)
+{
+    return [&](const auto* str) {
+        if constexpr (std::
+                          is_same_v<std::filesystem::path::value_type, wchar_t>)
+        {
+            return image.saveU(str) == TRUE;
+        }
+        else
+        {
+            return image.save(str) == TRUE;
+        }
+    }(path.c_str());
+}
+
+class fipImageEx : public fipImage
 {
 public:
 	fipImageEx(FREE_IMAGE_TYPE image_type = FIT_BITMAP, unsigned width = 0, unsigned height = 0, unsigned bpp = 0)
-		: fipWinImage(image_type, width, height, bpp) {}
+		: fipImage(image_type, width, height, bpp) {}
 	fipImageEx(const fipImageEx& Image) { *this = Image; }
-	explicit fipImageEx(const fipWinImage& Image) { *this = Image; }
+	explicit fipImageEx(const fipImage& Image) { *this = Image; }
 	explicit fipImageEx(FIBITMAP *bitmap) { *this = bitmap; }
 	virtual ~fipImageEx() {}
 
@@ -48,11 +95,11 @@ public:
 		return *this;
 	}
 
-	fipImageEx& operator=(const fipWinImage& Image)
+	fipImageEx& operator=(const fipImage& Image)
 	{
 		if (this != &Image)
 		{
-			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(const_cast<fipWinImage&>(Image)));
+			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(const_cast<fipImage&>(Image)));
 			replace(clone);
 			_fif = Image.getFIF();
 		}
@@ -76,12 +123,12 @@ public:
 	FIBITMAP *detach()
 	{
 		FIBITMAP *dib = _dib;
-		_dib = NULL;
+        _dib = nullptr;
 		clear();
 		return dib;
 	}
 
-	BOOL colorQuantizeEx(FREE_IMAGE_QUANTIZE quantize = FIQ_WUQUANT, int PaletteSize = 256, int ReserveSize = 0, RGBQUAD *ReservePalette = NULL)
+    BOOL colorQuantizeEx(FREE_IMAGE_QUANTIZE quantize = FIQ_WUQUANT, int PaletteSize = 256, int ReserveSize = 0, RGBQUAD *ReservePalette = nullptr)
 	{
 		if(_dib) {
 			FIBITMAP *dib8 = FreeImage_ColorQuantizeEx(_dib, quantize, PaletteSize, ReserveSize, ReservePalette);
@@ -90,7 +137,7 @@ public:
 		return false;
 	}
 
-	bool convertColorDepth(unsigned bpp, RGBQUAD *pPalette = NULL)
+    bool convertColorDepth(unsigned bpp, RGBQUAD *pPalette = nullptr)
 	{
 		switch (bpp)
 		{
@@ -115,7 +162,7 @@ public:
 
 			RGBQUAD *rgbq_dst = getPalette();
 			RGBQUAD *rgbq_src = pPalette ? pPalette : tmp.getPalette();
-			memcpy(rgbq_dst, rgbq_src, sizeof(RGBQUAD) * 16);
+			std::memcpy(rgbq_dst, rgbq_src, sizeof(RGBQUAD) * 16);
 			return true;
 		}
 		case 8:
@@ -155,122 +202,138 @@ class fipMultiPageEx : public fipMultiPage
 public:
 	explicit fipMultiPageEx(BOOL keep_cache_in_memory = FALSE)
 		: fipMultiPage(keep_cache_in_memory)
-		, m_handle(NULL)
 	{
+    }
+   
+	bool openU(const std::filesystem::path &pathName, int flags = 0)
+    {
+        /* Load multipage files from a temporary copy to avoid a lock on the
+         * original files, so they can be saved back if desired (#14) */
+        const std::filesystem::path tmpName = std::tmpnam(nullptr);
+        std::filesystem::copy_file(pathName, tmpName);
+        m_temporaryFile.emplace(tmpName);
+        m_sourceFile.open(tmpName, std::ios::binary);
+		if (!m_sourceFile)
+		{
+            m_temporaryFile.reset();
+            return false;
+		}
+
+		FreeImageIO m_io;
+		m_io.read_proc  = myReadProc;
+		m_io.write_proc = nullptr;
+		m_io.seek_proc  = mySeekReadProc;
+		m_io.tell_proc  = myTellReadProc;
+        const BOOL result = open(&m_io, static_cast<fi_handle>(&m_sourceFile), flags);
+        if (result == FALSE)
+        {
+            m_temporaryFile.reset();
+        }
+        return result == TRUE;
 	}
 
-	BOOL openU(const wchar_t* lpszPathName, BOOL create_new, BOOL read_only, int flags = 0)
+	bool saveU(const std::filesystem::path &pathName, int flag = 0) const
 	{
-		FILE *fp = NULL;
-#ifdef _WIN32
-		_wfopen_s(&fp, lpszPathName, L"r+b");
-		if (fp != NULL && !read_only)
+		std::fstream outputFile(pathName, std::ios::out | std::ios::binary);
+		if (!outputFile)
 		{
-			WCHAR szTempPathName[MAX_PATH];
-			DWORD cchTempPath = GetTempPathW(_countof(szTempPathName), szTempPathName);
-			if (cchTempPath <= MAX_PATH - 40)
-			{
-				GUID guid;
-				CoCreateGuid(&guid);
-				StringFromGUID2(guid, szTempPathName + cchTempPath, 40);
-				FILE *fpTmp = NULL;
-				// Create file with "D" option so it vanishes when closed
-				_wfopen_s(&fpTmp, szTempPathName, L"w+bD");
-				if (fpTmp != NULL)
-				{
-					char buffer[16384];
-					while (size_t bytes = fread(buffer, 1, sizeof buffer, fp))
-					{
-						if (fwrite(buffer, 1, bytes, fpTmp) != bytes)
-						{
-							fclose(fpTmp);
-							fpTmp = NULL;
-							break;
-						}
-					}
-					fclose(fp);
-					fp = fpTmp;
-				}
-			}
-		}
-#else
-		char filename[260];
-		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
-		fp = fopen(filename, "r+b");
-#endif
-		if (fp != NULL)
-		{
-			FreeImageIO io;
-			io.read_proc = myReadProc;
-			io.write_proc = myWriteProc;
-			io.seek_proc = mySeekProc;
-			io.tell_proc = myTellProc;
-			FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
-			_mpage = FreeImage_OpenMultiBitmapFromHandle(fif, &io, fp, flags);
-			if (_mpage != NULL)
-			{
-				m_handle = fp;
-			}
-			else
-			{
-				fclose(fp);
-			}
-		}
-		return _mpage != NULL;
-	}
-
-	BOOL close(int flags = 0)
-	{
-		BOOL bSuccess = fipMultiPage::close(flags);
-		if (m_handle != NULL)
-		{
-			fclose(m_handle);
-			m_handle = NULL;
-		}
-		return bSuccess;
-	}
-
-	bool saveU(const wchar_t* lpszPathName, int flag = 0) const
-	{
-		FILE *fp = NULL;
-#ifdef _WIN32
-		_wfopen_s(&fp, lpszPathName, L"w+b");
-#else
-		char filename[260];
-		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
-		fp = fopen(filename, "w+b");
-#endif
-		if (!fp)
 			return false;
-		FreeImageIO io;
-		io.read_proc  = myReadProc;
-		io.write_proc = myWriteProc;
-		io.seek_proc  = mySeekProc;
-		io.tell_proc  = myTellProc;
-		FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
-		bool result = !!saveToHandle(fif, &io, (fi_handle)fp, flag);
-		fclose(fp);
-		return result;
+        }
+        const FREE_IMAGE_FORMAT fif = identifyFIF(pathName);
+
+        FreeImageIO m_io;
+        m_io.read_proc = nullptr;
+        m_io.write_proc = myWriteProc;
+        m_io.seek_proc = mySeekWriteProc;
+        m_io.tell_proc = myTellWriteProc;
+        bool result = !!saveToHandle(fif, &m_io, static_cast<fi_handle>(&outputFile), flag);
+        return result;
 	}
 
 private:
-	FILE *m_handle; // Refers to temporary copy of original file
+        struct TemporaryFile
+        {
+        private:
+            std::filesystem::path m_path;
+        public:
+            TemporaryFile(const std::filesystem::path& path) : m_path(path) {}
+            TemporaryFile(const TemporaryFile&) = delete;
 
-	static unsigned DLL_CALLCONV myReadProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-		return (unsigned)fread(buffer, size, count, (FILE *)handle);
+            ~TemporaryFile()
+            {
+                std::filesystem::remove(m_path);
+            }
+        };
+    std::optional<TemporaryFile> m_temporaryFile;
+
+	static unsigned DLL_CALLCONV myReadProc(
+			void *buffer,
+			unsigned size,
+			unsigned count,
+			fi_handle handle)
+	{
+		auto &file = *static_cast<std::ifstream *>(handle);
+		auto *byteBuffer = reinterpret_cast<std::fstream::char_type *>(buffer);
+		file.read(byteBuffer, size * count);
+		return file.gcount() / size;
 	}
 
-	static unsigned DLL_CALLCONV myWriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-		return (unsigned)fwrite(buffer, size, count, (FILE *)handle);
+	static unsigned DLL_CALLCONV myWriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle)
+	{
+		auto &file = *static_cast<std::ofstream *>(handle);
+		auto *byteBuffer = reinterpret_cast<std::fstream::char_type *>(buffer);
+		file.write(byteBuffer, size * count);
+		if (!file)
+		{
+			return 0;
+		}
+		return count;
 	}
 
-	static int DLL_CALLCONV mySeekProc(fi_handle handle, long offset, int origin) {
-		return fseek((FILE *)handle, offset, origin);
+	static int DLL_CALLCONV mySeekReadProc(fi_handle handle, long offset, int origin) {
+		auto &file = *static_cast<std::ifstream *>(handle);
+		const auto dir = [&](){
+			switch (origin) {
+			case SEEK_SET:
+				return std::ios::beg;
+			case SEEK_CUR:
+				return std::ios::cur;
+			case SEEK_END:
+				return std::ios::end;
+			}
+			return std::ios::beg;
+		}();
+		return file.seekg(offset, dir) ? 0 : 1;
 	}
 
-	static long DLL_CALLCONV myTellProc(fi_handle handle) {
-		return ftell((FILE *)handle);
+	static long DLL_CALLCONV myTellReadProc(fi_handle handle) {
+		auto &file = *static_cast<std::ifstream *>(handle);
+		return file.tellg();
 	}
+
+	static int DLL_CALLCONV mySeekWriteProc(fi_handle handle, long offset, int origin) {
+		auto &file = *static_cast<std::ofstream *>(handle);
+		const auto dir = [&](){
+			switch (origin) {
+			case SEEK_SET:
+				return std::ios::beg;
+			case SEEK_CUR:
+				return std::ios::cur;
+			case SEEK_END:
+				return std::ios::end;
+			}
+			return std::ios::beg;
+		}();
+		return file.seekp(offset, dir) ? 0 : 1;
+	}
+
+	static long DLL_CALLCONV myTellWriteProc(fi_handle handle) {
+		auto &file = *static_cast<std::ofstream *>(handle);
+		return file.tellp();
+	}
+
+	std::ifstream m_sourceFile;
+
 };
 
 class MultiPageImages;
@@ -284,7 +347,7 @@ public:
 	Image(int w, int h) : image_(FIT_BITMAP, w, h, 32) {}
 	Image(const Image& other) : image_(other.image_) {}
 	explicit Image(FIBITMAP *bitmap) : image_(bitmap) {}
-	explicit Image(const fipWinImage& image) : image_(image) {}
+	explicit Image(const fipImage& image) : image_(image) {}
 	BYTE *scanLine(int y) { return image_.getScanLine(image_.getHeight() - y - 1); }
 	const BYTE *scanLine(int y) const { return image_.getScanLine(image_.getHeight() - y - 1); }
 	bool convertTo32Bits() {
@@ -292,18 +355,15 @@ public:
 			return true;
 		return image_.convertTo8Bits() && image_.convertTo32Bits();
 	}
-	bool load(const std::wstring& filename) { return !!image_.loadU(filename.c_str()); }
-	bool save(const std::wstring& filename)
-	{
-#ifdef _WIN32
-		return !!image_.saveU(filename.c_str());
-#else
-		char filenameA[260];
-		snprintf(filenameA, sizeof(filenameA), "%ls", filename.c_str());
-		return !!image_.save(filenameA);
-#endif
-	}
-	int depth() const { return image_.getBitsPerPixel(); }
+    bool load(const std::filesystem::path& filename)
+    {
+        return ::load(image_, filename);
+    }
+    bool save(const std::filesystem::path& filename)
+    {
+        return ::save(image_, filename);
+    }
+    int depth() const { return image_.getBitsPerPixel(); }
 	unsigned width() const  { return image_.getWidth(); }
 	unsigned height() const { return image_.getHeight(); }
 	void clear() { image_.clear(); }
@@ -345,7 +405,7 @@ public:
 		fipMetadataFind finder;
 		static const struct {
 			FREE_IMAGE_MDMODEL model;
-			char *name;
+			const char *name;
 		} models[] = {
 			{ FIMD_COMMENTS, "COMMENTS" },
 			{ FIMD_EXIF_MAIN, "EXIF_MAIN" },
@@ -396,8 +456,8 @@ public:
 	bool close() { return !!multi_.close(); }
 	bool isValid() const { return !!multi_.isValid(); }
 	int getPageCount() const { return multi_.getPageCount(); }
-	bool load(const std::wstring& filename) { return !!multi_.openU(filename.c_str(), FALSE, FALSE); }
-	bool save(const std::wstring& filename) { return !!multi_.saveU(filename.c_str()); }
+	bool load(const std::filesystem::path& filename) { return !!multi_.openU(filename); }
+	bool save(const std::filesystem::path& filename) { return !!multi_.saveU(filename); }
 	Image getImage(int page)
 	{
 		FIBITMAP *bitmaptmp, *bitmap;
@@ -425,3 +485,5 @@ public:
 
 	fipMultiPageEx multi_;
 };
+
+#endif /* IMAGE_HPP */
