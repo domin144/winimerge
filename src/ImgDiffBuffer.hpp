@@ -17,19 +17,20 @@
 
 #pragma once
 
-#include "image.hpp"
 #include "ImgConverter.hpp"
-#include <filesystem>
-#include <string>
+#include "image.hpp"
+
 #include <algorithm>
-#include <cstdio>
-#include <cstring>
-#include <cmath>
-#include <vector>
+#include <cassert>
 #include <chrono>
 #include <cmath>
-#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <gdkmm/rectangle.h>
 #include <limits>
+#include <string>
+#include <vector>
 
 enum OP_TYPE
 {
@@ -42,6 +43,10 @@ template<class T> struct Point
 	Point(T x, T y): x(x), y(y) {}
 	T x, y;
 };
+
+using POINT = Point<int>;
+
+using RECT = Gdk::Rectangle;
 
 template<class T> struct Size
 {

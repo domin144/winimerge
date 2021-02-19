@@ -17,11 +17,14 @@
 
 #pragma once
 
-#include <Windows.h>
-#include <wtypes.h>
+#include <ImgDiffBuffer.hpp>
+#include <gdkmm/rectangle.h>
+#include <gdkmm/rgba.h>
+#include <gtkmm/window.h>
 
-struct IImgMergeWindow
+class IImgMergeWindow : public Gtk::Window
 {
+public:
 	enum INSERTION_DELETION_DETECTION_MODE {
 		INSERTION_DELETION_DETECTION_NONE = 0, INSERTION_DELETION_DETECTION_VERTICAL, INSERTION_DELETION_DETECTION_HORIZONTAL
 	};
@@ -59,6 +62,7 @@ struct IImgMergeWindow
 		int diffIndex;
 	};
 	typedef void (*EventListenerFunc)(const Event& evt);
+private:
 	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2) = 0;
 	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2, const wchar_t *filename3) = 0;
 	virtual bool ReloadImages() = 0;
@@ -68,10 +72,10 @@ struct IImgMergeWindow
 	virtual bool SaveDiffImageAs(int pane, const wchar_t *filename) = 0;
 	virtual const wchar_t *GetFileName(int pane) = 0;
 	virtual int  GetPaneCount() const = 0;
-	virtual RECT GetPaneWindowRect(int pane) const = 0;
-	virtual RECT GetWindowRect() const = 0;
-	virtual bool SetWindowRect(const RECT& rc) = 0;
-	virtual POINT GetCursorPos(int pane) const = 0;
+    virtual RECT GetPaneWindowRect(int pane) const = 0;
+    virtual RECT GetWindowRect() const = 0;
+    virtual bool SetWindowRect(const RECT& rc) = 0;
+    virtual POINT GetCursorPos(int pane) const = 0;
 	virtual RGBQUAD GetPixelColor(int pane, int x, int y) const = 0;
 	virtual double GetColorDistance(int pane1, int pane2, int x, int y) const = 0;
 	virtual int  GetActivePane() const = 0;
@@ -133,9 +137,7 @@ struct IImgMergeWindow
 	virtual bool IsRedoable() const = 0;
 	virtual bool Undo() = 0;
 	virtual bool Redo() = 0;
-	virtual bool IsModified(int pane) const = 0;
-	virtual HWND GetHWND() const = 0;
-	virtual HWND GetPaneHWND(int pane) const = 0;
+    virtual bool IsModified(int pane) const = 0;
 	virtual int  GetImageWidth(int pane) const = 0;
 	virtual int  GetImageHeight(int pane) const = 0;
 	virtual int  GetImageBitsPerPixel(int pane) const = 0;
@@ -162,28 +164,28 @@ struct IImgMergeWindow
 	virtual bool Paste() = 0;
 	virtual bool SelectAll() = 0;
 	virtual bool Cancel() = 0;
-	virtual RECT GetRectangleSelection(int pane) const = 0;
+    virtual RECT GetRectangleSelection(int pane) const = 0;
 	virtual bool IsCopyable() const = 0;
 	virtual bool IsCuttable() const = 0;
 	virtual bool IsPastable() const = 0;
 	virtual bool IsCancellable() const = 0;
 	virtual bool IsRectangleSelectionVisible(int pane) const = 0;
-	virtual BSTR ExtractTextFromImage(int pane, int page, OCR_RESULT_TYPE resultType) = 0;
+    virtual std::string ExtractTextFromImage(int pane, int page, OCR_RESULT_TYPE resultType) = 0;
 };
 
-struct IImgToolWindow
+class IImgToolWindow : public Gtk::Window
 {
-	using TranslateCallback = void(*)(int id, const wchar_t *org, size_t dstbufsize, wchar_t *dst);
-	virtual HWND GetHWND() const = 0;
+public:
+    using TranslateCallback = void(*)(int id, const wchar_t *org, size_t dstbufsize, wchar_t *dst);
 	virtual void Sync() = 0;
 	virtual void Translate(TranslateCallback translateCallback) = 0;
 };
 
 extern "C"
 {
-	IImgMergeWindow * WinIMerge_CreateWindow(HINSTANCE hInstance, HWND hWndParent, int nID = 0);
+    IImgMergeWindow * WinIMerge_CreateWindow(Gtk::Widget *parent, int nID = 0);
 	bool WinIMerge_DestroyWindow(IImgMergeWindow *pImgMergeWindow);
-	IImgToolWindow * WinIMerge_CreateToolWindow(HINSTANCE hInstance, HWND hWndParent, IImgMergeWindow *pImgMergeWindow);
+    IImgToolWindow * WinIMerge_CreateToolWindow(Gtk::Widget *parent, IImgMergeWindow *pImgMergeWindow);
 	bool WinIMerge_DestroyToolWindow(IImgToolWindow *pImgToolWindow);
 	IImgMergeWindow * WinIMerge_CreateWindowless();
 };

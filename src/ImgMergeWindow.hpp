@@ -15,35 +15,15 @@
 //    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 /////////////////////////////////////////////////////////////////////////////
 
-#pragma once
-#pragma warning(disable: 4819)
+#ifndef IMGMERGEWINDOW_HPP
+#define IMGMERGEWINDOW_HPP
 
-#include <Windows.h>
 #include <cstring>
 #include "FreeImagePlus.h"
 #include "ImgWindow.hpp"
 #include "ImgMergeBuffer.hpp"
 #include "Ocr.hpp"
 #include "WinIMergeLib.h"
-
-
-namespace
-{
-	RGBQUAD COLORREFtoRGBQUAD(COLORREF c)
-	{
-		RGBQUAD rgb;
-		rgb.rgbRed   = GetRValue(c);
-		rgb.rgbGreen = GetGValue(c);
-		rgb.rgbBlue  = GetBValue(c);
-		rgb.rgbReserved = (c >> 24);
-		return rgb;
-	}
-
-	COLORREF RGBQUADtoCOLORREF(RGBQUAD c)
-	{
-		return RGB(c.rgbRed, c.rgbGreen, c.rgbBlue) | (c.rgbReserved << 24);
-	}
-}
 
 class CImgMergeWindow : public IImgMergeWindow
 {
@@ -56,9 +36,7 @@ class CImgMergeWindow : public IImgMergeWindow
 
 public:
 	CImgMergeWindow() : 
-		  m_nImages(0)
-		, m_hWnd(NULL)
-		, m_hInstance(NULL)
+          m_nImages(0)
 		, m_nDraggingSplitter(-1)
 		, m_bHorizontalSplit(false)
 		, m_oldSplitPosX(-4)
@@ -68,23 +46,18 @@ public:
 		, m_ptPrev{ 0, 0 }
 		, m_draggingMode(DRAGGING_MODE::MOVE)
 		, m_draggingModeCurrent(DRAGGING_MODE::MOVE)
-		, m_gdiplusToken(0)
+//		, m_gdiplusToken(0)
 	{
 		for (int i = 0; i < 3; ++i)
 			m_ChildWndProc[i] = NULL;
-
-		Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-		Gdiplus::GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, nullptr);
 	}
 
 	~CImgMergeWindow()
-	{
-		Gdiplus::GdiplusShutdown(m_gdiplusToken);
+    {
 	}
 
-	bool Create(HINSTANCE hInstance, HWND hWndParent, int nID, const RECT &rc)
-	{
-		m_hInstance = hInstance;
+    bool Create(Gtk::Window *parent, int nID, const RECT &rc)
+    {
 		MyRegisterClass(hInstance);
 		m_hWnd = CreateWindowExW(0, L"WinImgMergeWindowClass", NULL, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
 			rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, hWndParent, reinterpret_cast<HMENU>((intptr_t)nID), hInstance, this);
@@ -147,7 +120,7 @@ public:
 		return true;
 	}
 
-	POINT GetCursorPos(int pane) const override
+	Point GetCursorPos(int pane) const override
 	{
 		POINT pt = {-1, -1};
 		if (pane < 0 || pane > m_nImages || !m_hWnd)
@@ -155,7 +128,7 @@ public:
 		return m_imgWindow[pane].GetCursorPos();
 	}
 
-	bool ConvertToRealPos(int pane, const POINT& pt, POINT& ptReal) const override
+	bool ConvertToRealPos(int pane, const Point& pt, Point& ptReal) const override
 	{
 		int rx, ry;
 		bool result = m_buffer.ConvertToRealPos(pane, pt.x, pt.y, rx, ry);
@@ -163,7 +136,7 @@ public:
 		return result;
 	}
 
-	RGBQUAD GetPixelColor(int pane, int x, int y) const override
+	Gdk::RGBA GetPixelColor(int pane, int x, int y) const override
 	{
 		return m_buffer.GetPixelColor(pane, x, y);
 	}
@@ -215,45 +188,45 @@ public:
 			m_imgWindow[i].SetWindowRect(rects[i]);
 	}
 
-	COLORREF GetDiffColor() const override
+	Gdk::RGBA GetDiffColor() const override
 	{
 		return RGBQUADtoCOLORREF(m_buffer.GetDiffColor());
 	}
 
-	void SetDiffColor(COLORREF clrDiffColor) override
+	void SetDiffColor(Gdk::RGBA clrDiffColor) override
 	{
 		m_buffer.SetDiffColor(COLORREFtoRGBQUAD(clrDiffColor));
 		Invalidate();
 	}
 
-	COLORREF GetDiffDeletedColor() const override
+	Gdk::RGBA GetDiffDeletedColor() const override
 	{
 		return RGBQUADtoCOLORREF(m_buffer.GetDiffDeletedColor());
 	}
 
-	void SetDiffDeletedColor(COLORREF clrDiffDeletedColor) override
+	void SetDiffDeletedColor(Gdk::RGBA clrDiffDeletedColor) override
 	{
 		m_buffer.SetDiffDeletedColor(COLORREFtoRGBQUAD(clrDiffDeletedColor));
 		Invalidate();
 	}
 
-	COLORREF GetSelDiffColor() const override
+	Gdk::RGBA GetSelDiffColor() const override
 	{
 		return RGBQUADtoCOLORREF(m_buffer.GetSelDiffColor());
 	}
 
-	void SetSelDiffColor(COLORREF clrSelDiffColor) override
+	void SetSelDiffColor(Gdk::RGBA clrSelDiffColor) override
 	{
 		m_buffer.SetSelDiffColor(COLORREFtoRGBQUAD(clrSelDiffColor));
 		Invalidate();
 	}
 
-	COLORREF GetSelDiffDeletedColor() const override
+	Gdk::RGBA GetSelDiffDeletedColor() const override
 	{
 		return RGBQUADtoCOLORREF(m_buffer.GetSelDiffDeletedColor());
 	}
 
-	void SetSelDiffDeletedColor(COLORREF clrSelDiffDeletedColor) override
+	void SetSelDiffDeletedColor(Gdk::RGBA clrSelDiffDeletedColor) override
 	{
 		m_buffer.SetSelDiffColor(COLORREFtoRGBQUAD(clrSelDiffDeletedColor));
 		Invalidate();
@@ -270,12 +243,12 @@ public:
 		Invalidate();
 	}
 
-	RGBQUAD GetBackColor() const override
+	Gdk::RGBA GetBackColor() const override
 	{
 		return m_hWnd ? m_imgWindow[0].GetBackColor() : RGBQUAD{0};
 	}
 
-	void SetBackColor(RGBQUAD backColor) override
+	void SetBackColor(Gdk::RGBA backColor) override
 	{
 		if (m_hWnd)
 		{
@@ -901,17 +874,17 @@ public:
 		return m_buffer.SaveDiffImageAs(pane, filename);
 	}
 
-	HWND GetPaneHWND(int pane) const override
-	{
-		if (pane < 0 || pane >= m_nImages || !m_hWnd)
-			return NULL;
-		return m_imgWindow[pane].GetHWND();
-	}
+//	HWND GetPaneHWND(int pane) const override
+//	{
+//		if (pane < 0 || pane >= m_nImages || !m_hWnd)
+//			return NULL;
+//		return m_imgWindow[pane].GetHWND();
+//	}
 
-	HWND GetHWND() const override
-	{
-		return m_hWnd;
-	}
+//	HWND GetHWND() const override
+//	{
+//		return m_hWnd;
+//	}
 
 	int  GetImageWidth(int pane) const override
 	{
@@ -943,10 +916,10 @@ public:
 		return m_buffer.GetDiffIndexFromPoint(x, y);
 	}
 
-	POINT GetImageOffset(int pane) const override
+	Point GetImageOffset(int pane) const override
 	{
 		Point<unsigned> pt = m_buffer.GetImageOffset(pane);
-		POINT pt2 = {static_cast<long>(pt.x), static_cast<long>(pt.y)};
+		Point pt2 = {static_cast<long>(pt.x), static_cast<long>(pt.y)};
 		return pt2;
 	}
 
@@ -1856,21 +1829,22 @@ private:
 	}
 
 	int m_nImages;
-	HWND m_hWnd;
-	HINSTANCE m_hInstance;
+//	HWND m_hWnd;
+//	HINSTANCE m_hInstance;
 	CImgWindow m_imgWindow[3];
-	WNDPROC m_ChildWndProc[3];
+//	WNDPROC m_ChildWndProc[3];
 	std::vector<EventListenerInfo> m_listener;
 	int m_nDraggingSplitter;
 	bool m_bHorizontalSplit;
 	int m_oldSplitPosX;
 	int m_oldSplitPosY;
 	bool m_bDragging;
-	POINT m_ptOrg;
-	POINT m_ptPrev;
+    Point m_ptOrg;
+    Point m_ptPrev;
 	DRAGGING_MODE m_draggingMode;
 	DRAGGING_MODE m_draggingModeCurrent;
 	CImgMergeBuffer m_buffer;
-	ULONG_PTR m_gdiplusToken;
 	std::unique_ptr<ocr::COcr> m_pOcr;
 };
+
+#endif /* IMGMERGEWINDOW_HPP */

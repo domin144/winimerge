@@ -15,9 +15,9 @@
 //    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 /////////////////////////////////////////////////////////////////////////////
 
-#include <Windows.h>
-#include <CommCtrl.h>
-#include <Shlwapi.h>
+//#include <Windows.h>
+//#include <CommCtrl.h>
+//#include <Shlwapi.h>
 #include <string>
 #include <algorithm>
 #include <iostream>

@@ -15,8 +15,6 @@
 //    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 /////////////////////////////////////////////////////////////////////////////
 
-#include <Windows.h>
-#include <gdiplus.h>
 #include "ImgWindow.hpp"
 #include "ImgMergeWindow.hpp"
 #include "ImgToolWindow.hpp"
