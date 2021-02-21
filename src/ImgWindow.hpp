@@ -22,6 +22,7 @@
 
 #include <FreeImagePlus.h>
 #include <algorithm>
+#include <gdkmm/general.h>
 #include <gdkmm/pixbuf.h>
 #include <gdkmm/rectangle.h>
 #include <gtkmm/adjustment.h>
@@ -454,7 +455,27 @@ private:
 //		return RegisterClassExW(&wcex);
 //	}
 
-	bool onAreaDraw(const ::Cairo::RefPtr<::Cairo::Context>& cr)
+	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const fipImage &image, const RECT &outputArea)
+	{
+		Glib::RefPtr<Gdk::Pixbuf> pixbufToBeScaled =
+			Gdk::Pixbuf::create_from_data(
+				image.accessPixels(),
+				Gdk::COLORSPACE_RGB,
+				true,
+				8,
+				static_cast<int>(image.getWidth()),
+				static_cast<int>(image.getHeight()),
+				static_cast<int>(image.getScanWidth()));
+
+		Glib::RefPtr<Gdk::Pixbuf> pixbuf = pixbufToBeScaled->scale_simple(
+			outputArea.get_width(),
+			outputArea.get_height(),
+			Gdk::INTERP_BILINEAR);
+		Gdk::Cairo::set_source_pixbuf(cr, pixbuf, outputArea.get_x(), outputArea.get_y());
+		cr->paint();
+	}
+
+	bool onAreaDraw(const Cairo::RefPtr<Cairo::Context>& cr)
 	{
 		Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
 		const int viewWidth = static_cast<int>(
@@ -468,230 +489,264 @@ private:
 
 		if (m_fip)
 		{
-			Glib::RefPtr<Gdk::Pixbuf> pixbuf = Gdk::Pixbuf::create(
-				Gdk::COLORSPACE_RGB, true, 8, viewWidth, viewHeight);
-
 			if (m_fip->isValid())
 			{
-				POINT pt = ConvertLPtoDP(0, 0);
-				RECT rcImg = { pt.x, pt.y, pt.x + static_cast<int>(m_fip->getWidth() * m_zoom), pt.y + static_cast<int>(m_fip->getHeight() * m_zoom) };
+				const POINT pt = ConvertLPtoDP(0, 0);
+				RECT rcImg = {
+					pt.x,
+					pt.y,
+					pt.x + static_cast<int>(m_fip->getWidth() * m_zoom),
+					pt.y + static_cast<int>(m_fip->getHeight() * m_zoom)};
 
 				if (rcImg.get_x() <= -32767 / 2
 					|| rcImg.get_x() + rcImg.get_width() >= 32767 / 2
 					|| rcImg.get_y() <= -32767 / 2
 					|| rcImg.get_y() + rcImg.get_height() >= 32767 / 2)
 				{
-					fipImage fipSubImage;
-					POINT ptTmpLT = ConvertDPtoLP(0, 0);
-					POINT ptTmpRB = ConvertDPtoLP(viewWidth + static_cast<int>(1 * m_zoom), static_cast<int>(viewHeight + 1 * m_zoom));
-					POINT ptSubLT = { (ptTmpLT.x >= 0) ? ptTmpLT.x : 0, (ptTmpLT.y >= 0) ? ptTmpLT.y : 0 };
-					POINT ptSubRB = {
-						ptTmpRB.x < static_cast<int>(m_fip->getWidth()) ? ptTmpRB.x : static_cast<int>(m_fip->getWidth()),
-						ptTmpRB.y < static_cast<int>(m_fip->getHeight()) ? ptTmpRB.y : static_cast<int>(m_fip->getHeight())
-					};
-					POINT ptSubLTDP = ConvertLPtoDP(ptSubLT.x, ptSubLT.y);
-					POINT ptSubRBDP = ConvertLPtoDP(ptSubRB.x, ptSubRB.y);
+					const POINT ptTmpLT = ConvertDPtoLP(0, 0);
+					const POINT ptTmpRB = ConvertDPtoLP(
+						viewWidth + static_cast<int>(1 * m_zoom),
+						static_cast<int>(viewHeight + 1 * m_zoom));
+					const POINT ptSubLT = {std::max(ptTmpLT.x, 0),
+									 std::max(ptTmpLT.y, 0)};
+					const POINT ptSubRB = {
+						std::min(
+							ptTmpRB.x, static_cast<int>(m_fip->getWidth())),
+						std::min(
+							ptTmpRB.y, static_cast<int>(m_fip->getHeight()))};
+					const POINT ptSubLTDP = ConvertLPtoDP(ptSubLT.x, ptSubLT.y);
+					const POINT ptSubRBDP = ConvertLPtoDP(ptSubRB.x, ptSubRB.y);
 					rcImg = { ptSubLTDP.x, ptSubLTDP.y, ptSubRBDP.x, ptSubRBDP.y };
+					fipImage fipSubImage;
 					m_fip->copySubImage(fipSubImage, ptSubLT.x, ptSubLT.y, ptSubRB.x, ptSubRB.y);
-					fipSubImage.drawEx(hdcMem, rcImg, false, m_useBackColor ? &m_backColor : NULL);
+					drawImage(
+						cr,
+						fipSubImage,
+						{m_nHScrollPos, m_nVScrollPos, viewWidth, viewHeight});
 				}
 				else
 				{
-					m_fip->drawEx(hdcMem, rcImg, false, m_useBackColor ? &m_backColor : NULL);
+					drawImage(
+						cr,
+						*m_fip,
+						{0,
+						 0,
+						 static_cast<int>(m_fip->getWidth() * m_zoom),
+						 static_cast<int>(m_fip->getHeight() * m_zoom)});
 				}
 			}
 			
 			if (m_visibleRectangleSelection)
 			{
-				RECT rcSelectionL = GetRectangleSelection();
-				POINT ptLT = ConvertLPtoDP(rcSelectionL.left, rcSelectionL.top);
-				POINT ptRB = ConvertLPtoDP(rcSelectionL.right, rcSelectionL.bottom);
-				RECT rcSelection = { ptLT.x, ptLT.y, ptRB.x, ptRB.y };
-				if (rcSelection.left == rcSelection.right || rcSelection.top == rcSelection.bottom)
+				const RECT rcSelectionL = GetRectangleSelection();
+				const POINT ptLT =
+					ConvertLPtoDP(rcSelectionL.get_x(), rcSelectionL.get_y());
+				const POINT ptRB = ConvertLPtoDP(
+					rcSelectionL.get_x() + rcSelectionL.get_width(),
+					rcSelectionL.get_y() + rcSelectionL.get_height());
+				const RECT rcSelection = {
+					ptLT.x, ptLT.y, ptRB.x - ptLT.x, ptRB.y - ptLT.y};
+				if (rcSelection.get_width() == 0
+					|| rcSelection.get_height() == 0)
 				{
-					DrawXorBar(hdcMem, rcSelection.left, rcSelection.top,
-						rcSelection.right - rcSelection.left + 1, rcSelection.bottom - rcSelection.top + 1);
+					DrawXorBar(
+						cr,
+						rcSelection.get_x(),
+						rcSelection.get_y(),
+						rcSelection.get_width() + 1,
+						rcSelection.get_height() + 1);
 				}
 				else
 				{
-					DrawXorRectangle(hdcMem, rcSelection.left, rcSelection.top, rcSelection.right - rcSelection.left, rcSelection.bottom - rcSelection.top, 1);
+					DrawXorRectangle(
+						cr,
+						rcSelection.get_x(),
+						rcSelection.get_y(),
+						rcSelection.get_width(),
+						rcSelection.get_height(),
+						1);
 				}
 			}
 
 			if (m_fipOverlappedImage.isValid())
 			{
-				POINT pt = ConvertLPtoDP(m_ptOverlappedImage.x, m_ptOverlappedImage.y);
-				RECT rcImg = { pt.x, pt.y, pt.x + static_cast<int>(m_fipOverlappedImage.getWidth() * m_zoom), pt.y + static_cast<int>(m_fipOverlappedImage.getHeight() * m_zoom) };
-				m_fipOverlappedImage.draw(hdcMem, rcImg);
-				DrawXorRectangle(hdcMem, rcImg.left, rcImg.top, rcImg.right - rcImg.left, rcImg.bottom - rcImg.top, 1);
+				const POINT pt =
+					ConvertLPtoDP(m_ptOverlappedImage.x, m_ptOverlappedImage.y);
+				RECT rcImg = {
+					pt.x,
+					pt.y,
+					static_cast<int>(m_fipOverlappedImage.getWidth() * m_zoom),
+					static_cast<int>(
+						m_fipOverlappedImage.getHeight() * m_zoom)};
+				drawImage(cr, m_fipOverlappedImage, rcImg);
+				DrawXorRectangle(
+					cr,
+					rcImg.get_x(),
+					rcImg.get_y(),
+					rcImg.get_width(),
+					rcImg.get_height(),
+					1);
 			}
-
-			BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, hdcMem, 0, 0, SRCCOPY);
-
-			DeleteObject(SelectObject(hdcMem, hOldBrush));
-			SelectObject(hdcMem, hOld);
-			DeleteObject(hbmMem);
-			DeleteDC(hdcMem);
 		}
-		EndPaint(m_hWnd, &ps);
+		return true;
 	}
 
-	void OnSize(UINT nType, int cx, int cy)
+	void OnSize()
 	{
 		CalcScrollBarRange();
 	}
 
-	void OnHScroll(UINT nSBCode, UINT nPos)
-	{
-		SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
-		GetScrollInfo(m_hWnd, SB_HORZ, &si);
-		switch (nSBCode) {
-		case SB_LINEUP:
-			--m_nHScrollPos;
-			break;
-		case SB_LINEDOWN:
-			++m_nHScrollPos;
-			break;
-		case SB_PAGEUP:
-			m_nHScrollPos -= si.nPage;
-			break;
-		case SB_PAGEDOWN:
-			m_nHScrollPos += si.nPage;
-			break;
-		case SB_THUMBTRACK:
-			m_nHScrollPos = nPos;
-			break;
-		default: break;
-		}
-		CalcScrollBarRange();
-		ScrollWindow(m_hWnd, si.nPos - m_nHScrollPos, 0, NULL, NULL);
-	}
+//	void OnHScroll(UINT nSBCode, UINT nPos)
+//	{
+//		SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
+//		GetScrollInfo(m_hWnd, SB_HORZ, &si);
+//		switch (nSBCode) {
+//		case SB_LINEUP:
+//			--m_nHScrollPos;
+//			break;
+//		case SB_LINEDOWN:
+//			++m_nHScrollPos;
+//			break;
+//		case SB_PAGEUP:
+//			m_nHScrollPos -= si.nPage;
+//			break;
+//		case SB_PAGEDOWN:
+//			m_nHScrollPos += si.nPage;
+//			break;
+//		case SB_THUMBTRACK:
+//			m_nHScrollPos = nPos;
+//			break;
+//		default: break;
+//		}
+//		CalcScrollBarRange();
+//		ScrollWindow(m_hWnd, si.nPos - m_nHScrollPos, 0, NULL, NULL);
+//	}
 
-	void OnVScroll(UINT nSBCode, UINT nPos)
-	{
-		SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
-		GetScrollInfo(m_hWnd, SB_VERT, &si);
-		switch (nSBCode) {
-		case SB_LINEUP:
-			--m_nVScrollPos;
-			break;
-		case SB_LINEDOWN:
-			++m_nVScrollPos;
-			break;
-		case SB_PAGEUP:
-			m_nVScrollPos -= si.nPage;
-			break;
-		case SB_PAGEDOWN:
-			m_nVScrollPos += si.nPage;
-			break;
-		case SB_THUMBTRACK:
-			m_nVScrollPos = nPos;
-			break;
-		default: break;
-		}
-		CalcScrollBarRange();
-		ScrollWindow(m_hWnd, 0, si.nPos - m_nVScrollPos, NULL, NULL);
-	}
+//	void OnVScroll(UINT nSBCode, UINT nPos)
+//	{
+//		SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
+//		GetScrollInfo(m_hWnd, SB_VERT, &si);
+//		switch (nSBCode) {
+//		case SB_LINEUP:
+//			--m_nVScrollPos;
+//			break;
+//		case SB_LINEDOWN:
+//			++m_nVScrollPos;
+//			break;
+//		case SB_PAGEUP:
+//			m_nVScrollPos -= si.nPage;
+//			break;
+//		case SB_PAGEDOWN:
+//			m_nVScrollPos += si.nPage;
+//			break;
+//		case SB_THUMBTRACK:
+//			m_nVScrollPos = nPos;
+//			break;
+//		default: break;
+//		}
+//		CalcScrollBarRange();
+//		ScrollWindow(m_hWnd, 0, si.nPos - m_nVScrollPos, NULL, NULL);
+//	}
 
-	void OnLButtonDown(UINT nFlags, int x, int y)
-	{
-		SetFocus();
-	}
+//	void OnLButtonDown(UINT nFlags, int x, int y)
+//	{
+//		SetFocus();
+//	}
 
-	void OnRButtonDown(UINT nFlags, int x, int y)
-	{
-		SetFocus();
-	}
+//	void OnRButtonDown(UINT nFlags, int x, int y)
+//	{
+//		SetFocus();
+//	}
 
-	void OnMouseWheel(UINT nFlags, short zDelta)
-	{
-		if (!(nFlags & MK_CONTROL))
-		{ 
-			RECT rc;
-			GetClientRect(m_hWnd, &rc);
-			if (!(nFlags & MK_SHIFT))
-			{
-				if (rc.bottom - rc.top < m_fip->getHeight() * m_zoom + MARGIN * 2)
-				{
-					SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
-					GetScrollInfo(m_hWnd, SB_VERT, &si);
-					m_nVScrollPos += - zDelta / (WHEEL_DELTA / 16);
-					CalcScrollBarRange();
-					ScrollWindow(m_hWnd, 0, si.nPos - m_nVScrollPos, NULL, NULL);
-				}
-			}
-			else
-			{
-				if (rc.right - rc.left < m_fip->getWidth() * m_zoom + MARGIN * 2)
-				{
-					SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
-					GetScrollInfo(m_hWnd, SB_HORZ, &si);
-					m_nHScrollPos += - zDelta / (WHEEL_DELTA / 16);
-					CalcScrollBarRange();
-					ScrollWindow(m_hWnd, si.nPos - m_nHScrollPos, 0, NULL, NULL);
-				}
-			}
-		}
-		else
-		{
-			SetZoom(m_zoom + (zDelta > 0 ? 0.1 : -0.1));
-		}
-	}
+//	void OnMouseWheel(UINT nFlags, short zDelta)
+//	{
+//		if (!(nFlags & MK_CONTROL))
+//		{
+//			RECT rc;
+//			GetClientRect(m_hWnd, &rc);
+//			if (!(nFlags & MK_SHIFT))
+//			{
+//				if (rc.bottom - rc.top < m_fip->getHeight() * m_zoom + MARGIN * 2)
+//				{
+//					SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
+//					GetScrollInfo(m_hWnd, SB_VERT, &si);
+//					m_nVScrollPos += - zDelta / (WHEEL_DELTA / 16);
+//					CalcScrollBarRange();
+//					ScrollWindow(m_hWnd, 0, si.nPos - m_nVScrollPos, NULL, NULL);
+//				}
+//			}
+//			else
+//			{
+//				if (rc.right - rc.left < m_fip->getWidth() * m_zoom + MARGIN * 2)
+//				{
+//					SCROLLINFO si{ sizeof SCROLLINFO, SIF_POS | SIF_RANGE | SIF_PAGE | SIF_TRACKPOS };
+//					GetScrollInfo(m_hWnd, SB_HORZ, &si);
+//					m_nHScrollPos += - zDelta / (WHEEL_DELTA / 16);
+//					CalcScrollBarRange();
+//					ScrollWindow(m_hWnd, si.nPos - m_nHScrollPos, 0, NULL, NULL);
+//				}
+//			}
+//		}
+//		else
+//		{
+//			SetZoom(m_zoom + (zDelta > 0 ? 0.1 : -0.1));
+//		}
+//	}
 
-	void OnSetFocus(HWND hwndOld)
-	{
-		InvalidateRect(m_hWnd, NULL, TRUE);
-	}
+//	void OnSetFocus(HWND hwndOld)
+//	{
+//		InvalidateRect(m_hWnd, NULL, TRUE);
+//	}
 
-	void OnKillFocus(HWND hwndNew)
-	{
-		InvalidateRect(m_hWnd, NULL, TRUE);
-	}
+//	void OnKillFocus(HWND hwndNew)
+//	{
+//		InvalidateRect(m_hWnd, NULL, TRUE);
+//	}
 
-	LRESULT OnWndMsg(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
-	{
-		switch (iMsg)
-		{
-		case WM_PAINT:
-			OnPaint();
-			break;
-		case WM_ERASEBKGND:
-			return TRUE;
-		case WM_HSCROLL:
-			OnHScroll((UINT)(LOWORD(wParam) & 0xff), (int)(unsigned short)HIWORD(wParam) | ((LOWORD(wParam) & 0xff00) << 8)); // See 'case WM_HSCROLL:' in CImgMergeWindow::ChildWndProc() 
-			break;
-		case WM_VSCROLL:
-			OnVScroll((UINT)(LOWORD(wParam) & 0xff), (int)(unsigned short)HIWORD(wParam) | ((LOWORD(wParam) & 0xff00) << 8)); // See 'case WM_VSCROLL:' in CImgMergeWindow::ChildWndProc() 
-			break;
-		case WM_LBUTTONDOWN:
-			OnLButtonDown((UINT)(wParam), (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
-			break;
-		case WM_RBUTTONDOWN:
-			OnRButtonDown((UINT)(wParam), (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
-			break;
-		case WM_MOUSEWHEEL:
-			OnMouseWheel(GET_KEYSTATE_WPARAM(wParam), GET_WHEEL_DELTA_WPARAM(wParam));
-			break;
-		case WM_SETFOCUS:
-			OnSetFocus((HWND)wParam);
-			break;
-		case WM_KILLFOCUS:
-			OnKillFocus((HWND)wParam);
-			break;
-		case WM_COMMAND:
-			PostMessage(GetParent(m_hWnd), iMsg, wParam, lParam);
-			break;
-		case WM_SIZE:
-			OnSize((UINT)wParam, LOWORD(lParam), HIWORD(lParam));
-			break;
-		case WM_SETCURSOR:
-			::SetCursor(m_hCursor ? m_hCursor : LoadCursor(nullptr, IDC_ARROW));
-			break;
-		default:
-			return DefWindowProc(hwnd, iMsg, wParam, lParam);
-		}
-		return 0;
-	}
+//	LRESULT OnWndMsg(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
+//	{
+//		switch (iMsg)
+//		{
+//		case WM_PAINT:
+//			OnPaint();
+//			break;
+//		case WM_ERASEBKGND:
+//			return TRUE;
+//		case WM_HSCROLL:
+//			OnHScroll((UINT)(LOWORD(wParam) & 0xff), (int)(unsigned short)HIWORD(wParam) | ((LOWORD(wParam) & 0xff00) << 8)); // See 'case WM_HSCROLL:' in CImgMergeWindow::ChildWndProc()
+//			break;
+//		case WM_VSCROLL:
+//			OnVScroll((UINT)(LOWORD(wParam) & 0xff), (int)(unsigned short)HIWORD(wParam) | ((LOWORD(wParam) & 0xff00) << 8)); // See 'case WM_VSCROLL:' in CImgMergeWindow::ChildWndProc()
+//			break;
+//		case WM_LBUTTONDOWN:
+//			OnLButtonDown((UINT)(wParam), (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
+//			break;
+//		case WM_RBUTTONDOWN:
+//			OnRButtonDown((UINT)(wParam), (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
+//			break;
+//		case WM_MOUSEWHEEL:
+//			OnMouseWheel(GET_KEYSTATE_WPARAM(wParam), GET_WHEEL_DELTA_WPARAM(wParam));
+//			break;
+//		case WM_SETFOCUS:
+//			OnSetFocus((HWND)wParam);
+//			break;
+//		case WM_KILLFOCUS:
+//			OnKillFocus((HWND)wParam);
+//			break;
+//		case WM_COMMAND:
+//			PostMessage(GetParent(m_hWnd), iMsg, wParam, lParam);
+//			break;
+//		case WM_SIZE:
+//			OnSize((UINT)wParam, LOWORD(lParam), HIWORD(lParam));
+//			break;
+//		case WM_SETCURSOR:
+//			::SetCursor(m_hCursor ? m_hCursor : LoadCursor(nullptr, IDC_ARROW));
+//			break;
+//		default:
+//			return DefWindowProc(hwnd, iMsg, wParam, lParam);
+//		}
+//		return 0;
+//	}
 
 	void CalcScrollBarRange()
 	{
@@ -718,9 +773,19 @@ private:
 			SetScrollInfo(m_hWnd, SB_HORZ, &si, TRUE);
 			m_nHScrollPos = GetScrollPos(m_hWnd, SB_HORZ);
 		}
+		if (m_fip)
+		{
+			m_drawingArea.set_size_request(
+				static_cast<int>(m_fip->getWidth() * m_zoom) + 2 * MARGIN,
+				static_cast<int>(m_fip->getHeight() * m_zoom) + 2 * MARGIN);
+		}
+		else
+		{
+			m_drawingArea.set_size_request();
+		}
 	}
 
-	void DrawXorBar(HDC hdc, int x1, int y1, int width, int height)
+	void DrawXorBar(const Cairo::RefPtr<Cairo::Content> &cr, int x1, int y1, int width, int height)
 	{
 		static const WORD _dotPatternBmp[8] = 
 		{ 
@@ -742,14 +807,14 @@ private:
 		DeleteObject(hbm);
 	}
 
-	void DrawXorRectangle(HDC hdc, int left, int top, int width, int height, int lineWidth)
+	void DrawXorRectangle(const Cairo::RefPtr<Cairo::Content> &cr, int left, int top, int width, int height, int lineWidth)
 	{
 		int right = left + width;
 		int bottom = top + height;
-		DrawXorBar(hdc, left                 , top                   , width    , lineWidth);
-		DrawXorBar(hdc, left                 , bottom - lineWidth + 1, width    , lineWidth);
-		DrawXorBar(hdc, left                 , top                   , lineWidth, height);
-		DrawXorBar(hdc, right - lineWidth + 1, top                   , lineWidth, height);
+		DrawXorBar(cr, left                 , top                   , width    , lineWidth);
+		DrawXorBar(cr, left                 , bottom - lineWidth + 1, width    , lineWidth);
+		DrawXorBar(cr, left                 , top                   , lineWidth, height);
+		DrawXorBar(cr, right - lineWidth + 1, top                   , lineWidth, height);
 	}
 
 //	static LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
