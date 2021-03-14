@@ -37,15 +37,15 @@ class CImgWindow : public Gtk::Frame
 public:
 	CImgWindow() :
 		m_fip(nullptr),
+		m_ptOverlappedImage {},
+		m_ptOverlappedImageCursor {},
 		m_nVScrollPos(0),
 		m_nHScrollPos(0),
 		m_zoom(1.0),
-		m_useBackColor(false),
-		m_backColor {0xff, 0xff, 0xff, 0xff},
-		m_visibleRectangleSelection(false),
-		m_ptOverlappedImage {},
-		m_ptOverlappedImageCursor {}//,
-//		m_hCursor(nullptr)
+		// m_useBackColor(false),
+		// m_backColor {0xff, 0xff, 0xff, 0xff},
+		m_visibleRectangleSelection(false) //,
+		// m_hCursor(nullptr)
 	{
 		add(m_scrolledWindow);
 		m_scrolledWindow.add(m_drawingArea);
@@ -750,29 +750,6 @@ private:
 
 	void CalcScrollBarRange()
 	{
-		RECT rc;
-		GetClientRect(m_hWnd, &rc);
-		SCROLLINFO si{ sizeof(SCROLLINFO) };
-		if (m_fip)
-		{
-			unsigned width  = static_cast<unsigned>(m_fip->getWidth()  * m_zoom) + MARGIN * 2;
-			unsigned height = static_cast<unsigned>(m_fip->getHeight() * m_zoom) + MARGIN * 2; 
-
-			si.fMask = SIF_POS | SIF_RANGE | SIF_PAGE | SIF_DISABLENOSCROLL;
-			si.nMin = 0;
-			si.nMax = height;
-			si.nPage = rc.bottom;
-			si.nPos = m_nVScrollPos;
-			SetScrollInfo(m_hWnd, SB_VERT, &si, TRUE);
-			m_nVScrollPos = GetScrollPos(m_hWnd, SB_VERT);
-
-			si.nMin = 0;
-			si.nMax = width;
-			si.nPage = rc.right;
-			si.nPos = m_nHScrollPos;
-			SetScrollInfo(m_hWnd, SB_HORZ, &si, TRUE);
-			m_nHScrollPos = GetScrollPos(m_hWnd, SB_HORZ);
-		}
 		if (m_fip)
 		{
 			m_drawingArea.set_size_request(
@@ -785,29 +762,40 @@ private:
 		}
 	}
 
-	void DrawXorBar(const Cairo::RefPtr<Cairo::Content> &cr, int x1, int y1, int width, int height)
+	void DrawXorBar(const Cairo::RefPtr<Cairo::Context> &cr, int x1, int y1, int width, int height)
 	{
-		static const WORD _dotPatternBmp[8] = 
-		{ 
-			0x00aa, 0x0055, 0x00aa, 0x0055, 
-			0x00aa, 0x0055, 0x00aa, 0x0055
-		};
+		cr->save();
+		static const std::array<std::uint8_t, 4 * 2 * 2> patternData = {
+			{0xff,
+			 0xff,
+			 0xff,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0x00,
+			 0xff,
+			 0xff,
+			 0xff,
+			 0x00,
+			 0x00}};
 
-		HBITMAP hbm = CreateBitmap(8, 8, 1, 1, _dotPatternBmp);
-		HBRUSH hbr = CreatePatternBrush(hbm);
-		
-		SetBrushOrgEx(hdc, x1, y1, 0);
-		HBRUSH hbrushOld = (HBRUSH)SelectObject(hdc, hbr);
-		
-		PatBlt(hdc, x1, y1, width, height, PATINVERT);
-		
-		SelectObject(hdc, hbrushOld);
-		
-		DeleteObject(hbr);
-		DeleteObject(hbm);
+		auto patternPixBuf = Gdk::Pixbuf::create_from_data(
+			patternData.data(), Gdk::COLORSPACE_RGB, false, 8, 2, 2, 8);
+
+		Gdk::Cairo::set_source_pixbuf(cr, patternPixBuf, x1, y1);
+		cr->set_operator(
+			static_cast<Cairo::Operator>(CAIRO_OPERATOR_DIFFERENCE));
+		cr->rectangle(x1, y1, width, height);
+		cr->fill();
+
+		cr->restore();
 	}
 
-	void DrawXorRectangle(const Cairo::RefPtr<Cairo::Content> &cr, int left, int top, int width, int height, int lineWidth)
+	void DrawXorRectangle(const Cairo::RefPtr<Cairo::Context> &cr, int left, int top, int width, int height, int lineWidth)
 	{
 		int right = left + width;
 		int bottom = top + height;
@@ -835,8 +823,8 @@ private:
 	int m_nVScrollPos;
 	int m_nHScrollPos;
 	double m_zoom;
-	bool m_useBackColor;
-	RGBQUAD m_backColor;
+//	bool m_useBackColor;
+//	RGBQUAD m_backColor;
 	bool m_visibleRectangleSelection;
 	POINT m_ptSelectionStart;
 	POINT m_ptSelectionEnd;

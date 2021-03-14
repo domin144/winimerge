@@ -1,0 +1,5 @@
+add_executable(ImgWindowExample)
+target_sources(ImgWindowExample PRIVATE ImgWindowExample.cpp)
+target_link_libraries(ImgWindowExample PRIVATE WinIMerge)
+set_property(TARGET ImgWindowExample PROPERTY CXX_STANDARD 17)
+set_property(TARGET ImgWindowExample PROPERTY CXX_EXTENSIONS OFF)

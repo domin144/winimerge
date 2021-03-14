@@ -17,18 +17,18 @@ target_sources(
         src/image.hpp
         src/ImgConverter.hpp
         src/ImgDiffBuffer.hpp
-        src/ImgMergeBuffer.hpp
-        src/ImgMergeWindow.hpp
-        src/ImgToolWindow.hpp
+#        src/ImgMergeBuffer.hpp
+#        src/ImgMergeWindow.hpp
+#        src/ImgToolWindow.hpp
         src/ImgWindow.hpp
-        src/Ocr.hpp
-        src/resource.h
-        src/Win78Libraries.cpp
-        src/Win78Libraries.h
-        src/WinIMerge.cpp
-        src/WinIMerge.h
-        src/WinIMergeLib.cpp
-        src/WinIMergeLib.h
+#        src/Ocr.hpp
+#        src/resource.h
+#        src/Win78Libraries.cpp
+#        src/Win78Libraries.h
+#        src/WinIMerge.cpp
+#        src/WinIMerge.h
+#        src/WinIMergeLib.cpp
+#        src/WinIMergeLib.h
 )
 
 target_link_libraries(
@@ -44,6 +44,7 @@ target_include_directories(
     PUBLIC
         src)
 
+set_property(TARGET WinIMerge PROPERTY LINKER_LANGUAGE CXX)
 set_property(TARGET WinIMerge PROPERTY CXX_STANDARD 17)
 set_property(TARGET WinIMerge PROPERTY CXX_EXTENSIONS OFF)
 
@@ -61,6 +62,8 @@ target_link_libraries(
     cmdidiff
     PRIVATE
         WinIMerge)
+
+add_subdirectory(examples)
 
 set_property(TARGET cmdidiff PROPERTY CXX_STANDARD 17)
 set_property(TARGET cmdidiff PROPERTY CXX_EXTENSIONS OFF)
