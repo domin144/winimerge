@@ -31,6 +31,22 @@
 #include <gtkmm/scrolledwindow.h>
 #include <vector>
 
+Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image)
+{
+	/* TODO: format conversion, vertical flip */
+	auto result = Gdk::Pixbuf::create(
+		Gdk::COLORSPACE_RGB, true, 8, image.getWidth(), image.getHeight());
+	result->set
+	Gdk::Pixbuf::create_from_data(
+		image.accessPixels(),
+		Gdk::COLORSPACE_RGB,
+		true,
+		8,
+		static_cast<int>(image.getWidth()),
+		static_cast<int>(image.getHeight()),
+		static_cast<int>(image.getScanWidth()));
+}
+
 class CImgWindow : public Gtk::Frame
 {
 	enum { MARGIN = 16 };
@@ -457,15 +473,7 @@ private:
 
 	void drawImage(const Cairo::RefPtr<Cairo::Context> &cr, const fipImage &image, const RECT &outputArea)
 	{
-		Glib::RefPtr<Gdk::Pixbuf> pixbufToBeScaled =
-			Gdk::Pixbuf::create_from_data(
-				image.accessPixels(),
-				Gdk::COLORSPACE_RGB,
-				true,
-				8,
-				static_cast<int>(image.getWidth()),
-				static_cast<int>(image.getHeight()),
-				static_cast<int>(image.getScanWidth()));
+		Glib::RefPtr<Gdk::Pixbuf> pixbufToBeScaled = fipToGdkPixbuf(image);
 
 		Glib::RefPtr<Gdk::Pixbuf> pixbuf = pixbufToBeScaled->scale_simple(
 			outputArea.get_width(),

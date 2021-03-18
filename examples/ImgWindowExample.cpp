@@ -10,48 +10,46 @@ int main(const int argc, char* argv[])
 	CImgWindow img_window;
 	window.add(img_window);
 
-	const char* bitmap = "00****00" //
-						 "0******0" //
-						 "*==**==*" //
-						 "*==**==*" //
-						 "********" //
-						 "*==**==*" //
-						 "0*====*0" //
-						 "00****00";
-	constexpr int width = 8;
-	constexpr int height = 8;
-	std::vector<std::uint8_t> pixels;
-	pixels.reserve(width * height * 3);
-	for (int i = 0; i < width * height; ++i)
+	const int input_width = 10;
+	const int input_height = 8;
+	const char* bitmap = "00******00" //
+						 "0********0" //
+						 "**==**==**" //
+						 "**==**==**" //
+						 "**********" //
+						 "*===**===*" //
+						 "0**====**0" //
+						 "00******00";
+	constexpr int width = 200;
+	constexpr int height = 120;
+	fipImage image(FIT_BITMAP, width, height, 24);
+	RGBQUAD black = {0x00, 0x00, 0x00, 0x00};
+	RGBQUAD yellow = {0x22, 0x77, 0x77, 0x00};
+	RGBQUAD blue = {0x77, 0x22, 0x22, 0x00};
+	for (int iy = 0; iy < height; ++iy)
 	{
-		switch (bitmap[i])
+		for (int ix = 0; ix < width; ++ix)
 		{
-		case '0':
-			pixels.push_back(0x00);
-			pixels.push_back(0x00);
-			pixels.push_back(0x00);
-			break;
-		case '*':
-			pixels.push_back(0x77);
-			pixels.push_back(0x77);
-			pixels.push_back(0x22);
-			break;
-		case '=':
-			pixels.push_back(0x22);
-			pixels.push_back(0x22);
-			pixels.push_back(0x77);
-			break;
-		default:
-			pixels.push_back(0x00);
-			pixels.push_back(0x00);
-			pixels.push_back(0x00);
-			break;
+			switch (bitmap
+						[(ix * input_width / width)
+						 + (iy * input_height / height) * input_width])
+			{
+			case '0':
+				image.setPixelColor(ix, height - iy - 1, &black);
+				break;
+			case '*':
+				image.setPixelColor(ix, height - iy - 1, &yellow);
+				break;
+			case '=':
+				image.setPixelColor(ix, height - iy - 1, &blue);
+				break;
+			default:
+				image.setPixelColor(ix, height - iy - 1, &black);
+				break;
+			}
 		}
 	}
-
-	static_assert (width % 8 == 0, "need to consider FreeImage scan line");
-	fipImage image(FIT_BITMAP, width, height, 24);
-	std::copy(pixels.begin(), pixels.end(), image.accessPixels());
+	image.save("test.png");
 
 	img_window.SetImage(&image);
 
