@@ -34,17 +34,28 @@
 Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image)
 {
 	/* TODO: format conversion, vertical flip */
+	const int bitsPerSample = 8;
+	const int bytesPerSample = bitsPerSample / 8;
 	auto result = Gdk::Pixbuf::create(
-		Gdk::COLORSPACE_RGB, true, 8, image.getWidth(), image.getHeight());
-	result->set
-	Gdk::Pixbuf::create_from_data(
-		image.accessPixels(),
-		Gdk::COLORSPACE_RGB,
-		true,
-		8,
-		static_cast<int>(image.getWidth()),
-		static_cast<int>(image.getHeight()),
-		static_cast<int>(image.getScanWidth()));
+		Gdk::COLORSPACE_RGB, true, bitsPerSample, image.getWidth(), image.getHeight());
+	std::uint8_t *const resultPixels = result->get_pixels();
+	for (int y = 0; y < image.getHeight(); ++y)
+	{
+		for (int x = 0; x < image.getWidth(); ++x)
+		{
+			std::uint8_t* const resultPixel =
+				&resultPixels
+					[y * result->get_rowstride()
+					 + x * bytesPerSample * result->get_n_channels()];
+			RGBQUAD color{};
+			image.getPixelColor(x, image.getHeight() - y - 1, &color);
+			resultPixel[0] = color.rgbRed;
+			resultPixel[1] = color.rgbGreen;
+			resultPixel[2] = color.rgbBlue;
+			resultPixel[3] = 0xff;
+		}
+	}
+	return result;
 }
 
 class CImgWindow : public Gtk::Frame

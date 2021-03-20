@@ -23,9 +23,16 @@ int main(const int argc, char* argv[])
 	constexpr int width = 200;
 	constexpr int height = 120;
 	fipImage image(FIT_BITMAP, width, height, 24);
-	RGBQUAD black = {0x00, 0x00, 0x00, 0x00};
-	RGBQUAD yellow = {0x22, 0x77, 0x77, 0x00};
-	RGBQUAD blue = {0x77, 0x22, 0x22, 0x00};
+	auto makeRgbQuad = [](std::uint8_t r, std::uint8_t g, std::uint8_t b) {
+		RGBQUAD result{};
+		result.rgbRed = r;
+		result.rgbGreen = g;
+		result.rgbBlue = b;
+		return result;
+	};
+	RGBQUAD black = makeRgbQuad(0x00, 0x00, 0x00);
+	RGBQUAD yellow = makeRgbQuad(0x22, 0x77, 0x77);
+	RGBQUAD blue = makeRgbQuad(0x77, 0x22, 0x22);
 	for (int iy = 0; iy < height; ++iy)
 	{
 		for (int ix = 0; ix < width; ++ix)
@@ -50,6 +57,9 @@ int main(const int argc, char* argv[])
 		}
 	}
 	image.save("test.png");
+
+	auto imageGdk = fipToGdkPixbuf(image);
+	imageGdk->save("test_gdk.png", "png");
 
 	img_window.SetImage(&image);
 
