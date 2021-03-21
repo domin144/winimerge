@@ -21,6 +21,7 @@ target_sources(
 #        src/ImgMergeWindow.hpp
 #        src/ImgToolWindow.hpp
         src/ImgWindow.hpp
+        src/ImgWindow.cpp
 #        src/Ocr.hpp
 #        src/resource.h
 #        src/Win78Libraries.cpp

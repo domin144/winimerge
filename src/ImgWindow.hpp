@@ -31,32 +31,7 @@
 #include <gtkmm/scrolledwindow.h>
 #include <vector>
 
-Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image)
-{
-	/* TODO: format conversion, vertical flip */
-	const int bitsPerSample = 8;
-	const int bytesPerSample = bitsPerSample / 8;
-	auto result = Gdk::Pixbuf::create(
-		Gdk::COLORSPACE_RGB, true, bitsPerSample, image.getWidth(), image.getHeight());
-	std::uint8_t *const resultPixels = result->get_pixels();
-	for (int y = 0; y < image.getHeight(); ++y)
-	{
-		for (int x = 0; x < image.getWidth(); ++x)
-		{
-			std::uint8_t* const resultPixel =
-				&resultPixels
-					[y * result->get_rowstride()
-					 + x * bytesPerSample * result->get_n_channels()];
-			RGBQUAD color{};
-			image.getPixelColor(x, image.getHeight() - y - 1, &color);
-			resultPixel[0] = color.rgbRed;
-			resultPixel[1] = color.rgbGreen;
-			resultPixel[2] = color.rgbBlue;
-			resultPixel[3] = 0xff;
-		}
-	}
-	return result;
-}
+Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image);
 
 class CImgWindow : public Gtk::Frame
 {
@@ -66,8 +41,6 @@ public:
 		m_fip(nullptr),
 		m_ptOverlappedImage {},
 		m_ptOverlappedImageCursor {},
-		m_nVScrollPos(0),
-		m_nHScrollPos(0),
 		m_zoom(1.0),
 		// m_useBackColor(false),
 		// m_backColor {0xff, 0xff, 0xff, 0xff},
@@ -133,11 +106,11 @@ public:
 		POINT lp;
 
 		if (viewWidth < m_fip->getWidth() * m_zoom + MARGIN * 2)
-			lp.x = static_cast<int>((dx - MARGIN + m_nHScrollPos) / m_zoom);
+			lp.x = static_cast<int>((dx - MARGIN + getHScrollPos()) / m_zoom);
 		else
 			lp.x = static_cast<int>((dx - (viewWidth / 2 - m_fip->getWidth() / 2 * m_zoom)) / m_zoom);
 		if (viewHeight < m_fip->getHeight() * m_zoom + MARGIN * 2)
-			lp.y = static_cast<int>((dy - MARGIN + m_nVScrollPos) / m_zoom);
+			lp.y = static_cast<int>((dy - MARGIN + getVScrollPos()) / m_zoom);
 		else
 			lp.y = static_cast<int>((dy - (viewHeight / 2 - m_fip->getHeight() / 2 * m_zoom)) / m_zoom);
 		return lp;
@@ -156,12 +129,12 @@ public:
 			dp.x =
 				static_cast<int>((viewWidth - m_fip->getWidth() * m_zoom) / 2);
 		else
-			dp.x = -m_nHScrollPos + MARGIN;
+			dp.x = -getHScrollPos() + MARGIN;
 		if (viewHeight > m_fip->getHeight() * m_zoom + MARGIN * 2)
 			dp.y = static_cast<int>(
 				(viewHeight - m_fip->getHeight() * m_zoom) / 2);
 		else
-			dp.y = -m_nVScrollPos + MARGIN;
+			dp.y = -getVScrollPos() + MARGIN;
 		dp.x += static_cast<int>(lx * m_zoom);
 		dp.y += static_cast<int>(ly * m_zoom);
 		return dp;
@@ -298,18 +271,19 @@ public:
 		m_zoom = zoom;
 		if (m_zoom < 0.1)
 			m_zoom = 0.1;
-		m_nVScrollPos = static_cast<int>(m_nVScrollPos / oldZoom * m_zoom);
-		m_nHScrollPos = static_cast<int>(m_nHScrollPos / oldZoom * m_zoom);
+		int newVScrollPos = static_cast<int>(getVScrollPos() / oldZoom * m_zoom);
+		int newHScrollPos = static_cast<int>(getHScrollPos() / oldZoom * m_zoom);
 		if (m_fip)
 		{
 			const int viewWidth = static_cast<int>(m_scrolledWindow.get_vadjustment()->get_page_size());
 			const int viewHeight = static_cast<int>(m_scrolledWindow.get_vadjustment()->get_page_size());
 			const int width  = static_cast<int>(m_fip->getWidth()  * m_zoom) + MARGIN * 2;
 			const int height = static_cast<int>(m_fip->getHeight() * m_zoom) + MARGIN * 2;
-			m_nHScrollPos = std::clamp(m_nHScrollPos, 0, width - viewWidth);
-			m_nVScrollPos = std::clamp(m_nVScrollPos, 0, height - viewHeight);
+			newHScrollPos = std::clamp(newHScrollPos, 0, width - viewWidth);
+			newVScrollPos = std::clamp(newVScrollPos, 0, height - viewHeight);
 			CalcScrollBarRange();
-//			InvalidateRect(m_hWnd, NULL, TRUE);
+			m_scrolledWindow.get_vadjustment()->set_value(newVScrollPos);
+			m_scrolledWindow.get_hadjustment()->set_value(newHScrollPos);
 		}
 	}
 
@@ -541,15 +515,15 @@ private:
 					drawImage(
 						cr,
 						fipSubImage,
-						{m_nHScrollPos, m_nVScrollPos, viewWidth, viewHeight});
+						{getHScrollPos(), getVScrollPos(), viewWidth, viewHeight});
 				}
 				else
 				{
 					drawImage(
 						cr,
 						*m_fip,
-						{0,
-						 0,
+						{pt.x,
+						 pt.y,
 						 static_cast<int>(m_fip->getWidth() * m_zoom),
 						 static_cast<int>(m_fip->getHeight() * m_zoom)});
 				}
@@ -833,14 +807,15 @@ private:
 //		return lResult;
 //	}
 
+	int getVScrollPos() const;
+	int getHScrollPos() const;
+
 	Gtk::ScrolledWindow m_scrolledWindow;
 	Gtk::DrawingArea m_drawingArea;
 	fipImage *m_fip;
 	fipImage m_fipOverlappedImage;
 	POINT m_ptOverlappedImage;
 	POINT m_ptOverlappedImageCursor;
-	int m_nVScrollPos;
-	int m_nHScrollPos;
 	double m_zoom;
 //	bool m_useBackColor;
 //	RGBQUAD m_backColor;
