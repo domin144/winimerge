@@ -19,7 +19,6 @@
 
 Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image)
 {
-	/* TODO: format conversion, vertical flip */
 	const int bitsPerSample = 8;
 	const int bytesPerSample = bitsPerSample / 8;
 	auto result = Gdk::Pixbuf::create(
@@ -42,6 +41,15 @@ Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image)
 		}
 	}
 	return result;
+}
+
+RECT CImgWindow::getViewRect() const
+{
+	const int viewWidth = static_cast<int>(
+		m_scrolledWindow.get_hadjustment()->get_page_size());
+	const int viewHeight = static_cast<int>(
+		m_scrolledWindow.get_vadjustment()->get_page_size());
+	return {getHScrollPos(), getVScrollPos(), viewWidth, viewHeight};
 }
 
 int CImgWindow::getHScrollPos() const

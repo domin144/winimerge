@@ -29,6 +29,7 @@
 #include <gtkmm/drawingarea.h>
 #include <gtkmm/frame.h>
 #include <gtkmm/scrolledwindow.h>
+#include <iostream>
 #include <vector>
 
 Glib::RefPtr<Gdk::Pixbuf> fipToGdkPixbuf(const fipImage &image);
@@ -50,6 +51,10 @@ public:
 		add(m_scrolledWindow);
 		m_scrolledWindow.add(m_drawingArea);
 
+		m_scrolledWindow.get_hadjustment()->signal_value_changed().connect(
+			sigc::mem_fun(this, &CImgWindow::onScroll));
+		m_scrolledWindow.get_vadjustment()->signal_value_changed().connect(
+			sigc::mem_fun(this, &CImgWindow::onScroll));
 		m_drawingArea.signal_draw().connect(
 			sigc::mem_fun(this, &CImgWindow::onAreaDraw));
 
@@ -96,48 +101,52 @@ public:
 //		::SetFocus(m_hWnd);
 //	}
 
-	/* Convert from view coordinates to picture coordinates */
-	POINT ConvertDPtoLP(int dx, int dy) const
+	/* Provides visible area in m_drawingArea coordinates. */
+	RECT getViewRect() const;
+
+	/* Convert from m_drawingArea to picture coordinates. */
+	POINT ConvertDPtoLP(const POINT &p) const
 	{
-		const int viewWidth = static_cast<int>(
-			m_scrolledWindow.get_hadjustment()->get_page_size());
-		const int viewHeight = static_cast<int>(
-			m_scrolledWindow.get_vadjustment()->get_page_size());
+		const RECT view = getViewRect();
 		POINT lp;
 
-		if (viewWidth < m_fip->getWidth() * m_zoom + MARGIN * 2)
-			lp.x = static_cast<int>((dx - MARGIN + getHScrollPos()) / m_zoom);
+		if (view.get_width() < m_fip->getWidth() * m_zoom + MARGIN * 2)
+			lp.x = static_cast<int>((p.x - MARGIN) / m_zoom);
 		else
-			lp.x = static_cast<int>((dx - (viewWidth / 2 - m_fip->getWidth() / 2 * m_zoom)) / m_zoom);
-		if (viewHeight < m_fip->getHeight() * m_zoom + MARGIN * 2)
-			lp.y = static_cast<int>((dy - MARGIN + getVScrollPos()) / m_zoom);
+			lp.x = static_cast<int>(
+				(p.y - (view.get_width() / 2 - m_fip->getWidth() / 2 * m_zoom))
+				/ m_zoom);
+		if (view.get_height() < m_fip->getHeight() * m_zoom + MARGIN * 2)
+			lp.y = static_cast<int>((p.y - MARGIN) / m_zoom);
 		else
-			lp.y = static_cast<int>((dy - (viewHeight / 2 - m_fip->getHeight() / 2 * m_zoom)) / m_zoom);
+			lp.y = static_cast<int>(
+				(p.y - (view.get_height() / 2 - m_fip->getHeight() / 2 * m_zoom))
+				/ m_zoom);
 		return lp;
 	}
 
-	/* Convert from picture coordinates to view coordinates */
-	POINT ConvertLPtoDP(const int lx, const int ly) const
+	/* Convert from picture coordinates to m_drawingArea coordinates */
+	POINT ConvertLPtoDP(const POINT &p) const
 	{
 		const int viewWidth = static_cast<int>(
 			m_scrolledWindow.get_hadjustment()->get_page_size());
 		const int viewHeight = static_cast<int>(
 			m_scrolledWindow.get_vadjustment()->get_page_size());
-		POINT dp;
+		POINT result;
 
 		if (viewWidth > m_fip->getWidth() * m_zoom + MARGIN * 2)
-			dp.x =
+			result.x =
 				static_cast<int>((viewWidth - m_fip->getWidth() * m_zoom) / 2);
 		else
-			dp.x = -getHScrollPos() + MARGIN;
+			result.x = MARGIN;
 		if (viewHeight > m_fip->getHeight() * m_zoom + MARGIN * 2)
-			dp.y = static_cast<int>(
+			result.y = static_cast<int>(
 				(viewHeight - m_fip->getHeight() * m_zoom) / 2);
 		else
-			dp.y = -getVScrollPos() + MARGIN;
-		dp.x += static_cast<int>(lx * m_zoom);
-		dp.y += static_cast<int>(ly * m_zoom);
-		return dp;
+			result.y = MARGIN;
+		result.x += static_cast<int>(p.x * m_zoom);
+		result.y += static_cast<int>(p.y * m_zoom);
+		return result;
 	}
 
 //	POINT GetCursorPos() const
@@ -468,6 +477,13 @@ private:
 		cr->paint();
 	}
 
+	void onScroll()
+	{
+		const auto view = getViewRect();
+		m_drawingArea.queue_draw_area(
+			view.get_x(), view.get_y(), view.get_width(), view.get_height());
+	}
+
 	bool onAreaDraw(const Cairo::RefPtr<Cairo::Context>& cr)
 	{
 		Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
@@ -484,59 +500,48 @@ private:
 		{
 			if (m_fip->isValid())
 			{
-				const POINT pt = ConvertLPtoDP(0, 0);
+				const POINT pt = ConvertLPtoDP({0, 0});
 				RECT rcImg = {
 					pt.x,
 					pt.y,
-					pt.x + static_cast<int>(m_fip->getWidth() * m_zoom),
-					pt.y + static_cast<int>(m_fip->getHeight() * m_zoom)};
+					static_cast<int>(m_fip->getWidth() * m_zoom),
+					static_cast<int>(m_fip->getHeight() * m_zoom)};
 
-				if (rcImg.get_x() <= -32767 / 2
-					|| rcImg.get_x() + rcImg.get_width() >= 32767 / 2
-					|| rcImg.get_y() <= -32767 / 2
-					|| rcImg.get_y() + rcImg.get_height() >= 32767 / 2)
-				{
-					const POINT ptTmpLT = ConvertDPtoLP(0, 0);
-					const POINT ptTmpRB = ConvertDPtoLP(
-						viewWidth + static_cast<int>(1 * m_zoom),
-						static_cast<int>(viewHeight + 1 * m_zoom));
-					const POINT ptSubLT = {std::max(ptTmpLT.x, 0),
-									 std::max(ptTmpLT.y, 0)};
-					const POINT ptSubRB = {
-						std::min(
-							ptTmpRB.x, static_cast<int>(m_fip->getWidth())),
-						std::min(
-							ptTmpRB.y, static_cast<int>(m_fip->getHeight()))};
-					const POINT ptSubLTDP = ConvertLPtoDP(ptSubLT.x, ptSubLT.y);
-					const POINT ptSubRBDP = ConvertLPtoDP(ptSubRB.x, ptSubRB.y);
-					rcImg = { ptSubLTDP.x, ptSubLTDP.y, ptSubRBDP.x, ptSubRBDP.y };
-					fipImage fipSubImage;
-					m_fip->copySubImage(fipSubImage, ptSubLT.x, ptSubLT.y, ptSubRB.x, ptSubRB.y);
-					drawImage(
-						cr,
-						fipSubImage,
-						{getHScrollPos(), getVScrollPos(), viewWidth, viewHeight});
-				}
-				else
-				{
-					drawImage(
-						cr,
-						*m_fip,
-						{pt.x,
-						 pt.y,
-						 static_cast<int>(m_fip->getWidth() * m_zoom),
-						 static_cast<int>(m_fip->getHeight() * m_zoom)});
-				}
+				const RECT view = getViewRect();
+				const POINT ptTmpLT =
+					ConvertDPtoLP({view.get_x(), view.get_y()});
+				const POINT ptTmpRB = ConvertDPtoLP(
+					{view.get_x() + static_cast<int>(viewWidth + 1 * m_zoom),
+					 view.get_y() + static_cast<int>(viewHeight + 1 * m_zoom)});
+				const POINT ptSubLT = {
+					std::clamp<int>(ptTmpLT.x, 0, m_fip->getWidth()),
+					std::clamp<int>(ptTmpLT.y, 0, m_fip->getHeight())};
+				const POINT ptSubRB = {
+					std::clamp<int>(ptTmpRB.x, 0, m_fip->getWidth()),
+					std::clamp<int>(ptTmpRB.y, 0, m_fip->getHeight())};
+				const POINT ptSubLTDP = ConvertLPtoDP(ptSubLT);
+				const POINT ptSubRBDP = ConvertLPtoDP(ptSubRB);
+				rcImg = {ptSubLTDP.x,
+						 ptSubLTDP.y,
+						 ptSubRBDP.x - ptSubLTDP.x,
+						 ptSubRBDP.y - ptSubLTDP.y};
+				fipImage fipSubImage;
+				m_fip->copySubImage(
+					fipSubImage, ptSubLT.x, ptSubLT.y, ptSubRB.x, ptSubRB.y);
+				std::cout << "rcImg: (x, y, width, height) = (" << rcImg.get_x()
+						  << ", " << rcImg.get_y() << ", " << rcImg.get_width()
+						  << ", " << rcImg.get_height() << ")" << std::endl;
+				drawImage(cr, fipSubImage, rcImg);
 			}
-			
+
 			if (m_visibleRectangleSelection)
 			{
 				const RECT rcSelectionL = GetRectangleSelection();
 				const POINT ptLT =
-					ConvertLPtoDP(rcSelectionL.get_x(), rcSelectionL.get_y());
+					ConvertLPtoDP({rcSelectionL.get_x(), rcSelectionL.get_y()});
 				const POINT ptRB = ConvertLPtoDP(
-					rcSelectionL.get_x() + rcSelectionL.get_width(),
-					rcSelectionL.get_y() + rcSelectionL.get_height());
+					{rcSelectionL.get_x() + rcSelectionL.get_width(),
+					 rcSelectionL.get_y() + rcSelectionL.get_height()});
 				const RECT rcSelection = {
 					ptLT.x, ptLT.y, ptRB.x - ptLT.x, ptRB.y - ptLT.y};
 				if (rcSelection.get_width() == 0
@@ -563,8 +568,7 @@ private:
 
 			if (m_fipOverlappedImage.isValid())
 			{
-				const POINT pt =
-					ConvertLPtoDP(m_ptOverlappedImage.x, m_ptOverlappedImage.y);
+				const POINT pt = ConvertLPtoDP(m_ptOverlappedImage);
 				RECT rcImg = {
 					pt.x,
 					pt.y,
