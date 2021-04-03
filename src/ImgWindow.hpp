@@ -114,7 +114,7 @@ public:
 			lp.x = static_cast<int>((p.x - MARGIN) / m_zoom);
 		else
 			lp.x = static_cast<int>(
-				(p.y - (view.get_width() / 2 - m_fip->getWidth() / 2 * m_zoom))
+                (p.x - (view.get_width() / 2 - m_fip->getWidth() / 2 * m_zoom))
 				/ m_zoom);
 		if (view.get_height() < m_fip->getHeight() * m_zoom + MARGIN * 2)
 			lp.y = static_cast<int>((p.y - MARGIN) / m_zoom);
@@ -128,20 +128,17 @@ public:
 	/* Convert from picture coordinates to m_drawingArea coordinates */
 	POINT ConvertLPtoDP(const POINT &p) const
 	{
-		const int viewWidth = static_cast<int>(
-			m_scrolledWindow.get_hadjustment()->get_page_size());
-		const int viewHeight = static_cast<int>(
-			m_scrolledWindow.get_vadjustment()->get_page_size());
+        const RECT view = getViewRect();
 		POINT result;
 
-		if (viewWidth > m_fip->getWidth() * m_zoom + MARGIN * 2)
-			result.x =
-				static_cast<int>((viewWidth - m_fip->getWidth() * m_zoom) / 2);
+        if (view.get_width() > m_fip->getWidth() * m_zoom + MARGIN * 2)
+            result.x = static_cast<int>(
+                (view.get_width() - m_fip->getWidth() * m_zoom) / 2);
 		else
 			result.x = MARGIN;
-		if (viewHeight > m_fip->getHeight() * m_zoom + MARGIN * 2)
+        if (view.get_height() > m_fip->getHeight() * m_zoom + MARGIN * 2)
 			result.y = static_cast<int>(
-				(viewHeight - m_fip->getHeight() * m_zoom) / 2);
+                (view.get_height() - m_fip->getHeight() * m_zoom) / 2);
 		else
 			result.y = MARGIN;
 		result.x += static_cast<int>(p.x * m_zoom);
@@ -486,15 +483,12 @@ private:
 
 	bool onAreaDraw(const Cairo::RefPtr<Cairo::Context>& cr)
 	{
-		Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
-		const int viewWidth = static_cast<int>(
-			m_scrolledWindow.get_hadjustment()->get_page_size());
-		const int viewHeight = static_cast<int>(
-			m_scrolledWindow.get_vadjustment()->get_page_size());
+        Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
+        const RECT view = getViewRect();
 
 		cr->set_source_rgb(206, 215, 230);
 		cr->paint();
-		style->render_background(cr, 0, 0, viewWidth, viewHeight);
+        style->render_background(cr, 0, 0, view.get_width(), view.get_height());
 
 		if (m_fip)
 		{
@@ -507,15 +501,16 @@ private:
 					static_cast<int>(m_fip->getWidth() * m_zoom),
 					static_cast<int>(m_fip->getHeight() * m_zoom)};
 
-				const RECT view = getViewRect();
 				const POINT ptTmpLT =
 					ConvertDPtoLP({view.get_x(), view.get_y()});
 				const POINT ptTmpRB = ConvertDPtoLP(
-					{view.get_x() + static_cast<int>(viewWidth + 1 * m_zoom),
-					 view.get_y() + static_cast<int>(viewHeight + 1 * m_zoom)});
+                    {view.get_x()
+                         + static_cast<int>(view.get_width() + 1 * m_zoom),
+                     view.get_y()
+                         + static_cast<int>(view.get_height() + 1 * m_zoom)});
 				const POINT ptSubLT = {
-					std::clamp<int>(ptTmpLT.x, 0, m_fip->getWidth()),
-					std::clamp<int>(ptTmpLT.y, 0, m_fip->getHeight())};
+                    std::clamp<int>(ptTmpLT.x, 0, m_fip->getWidth()),
+                    std::clamp<int>(ptTmpLT.y, 0, m_fip->getHeight())};
 				const POINT ptSubRB = {
 					std::clamp<int>(ptTmpRB.x, 0, m_fip->getWidth()),
 					std::clamp<int>(ptTmpRB.y, 0, m_fip->getHeight())};
