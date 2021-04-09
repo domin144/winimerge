@@ -17,7 +17,7 @@ target_sources(
         src/image.hpp
         src/ImgConverter.hpp
         src/ImgDiffBuffer.hpp
-#        src/ImgMergeBuffer.hpp
+        src/ImgMergeBuffer.hpp
 #        src/ImgMergeWindow.hpp
 #        src/ImgToolWindow.hpp
         src/ImgWindow.hpp

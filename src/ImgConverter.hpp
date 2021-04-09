@@ -26,7 +26,8 @@
 
 struct ImageRenderer
 {
-	virtual bool load(const std::filesystem::path &filename) = 0;
+    virtual ~ImageRenderer() = 0;
+    virtual bool load(const std::filesystem::path& filename) = 0;
 	virtual bool isValid() const = 0;
 	virtual void render(Image& img, int page, float zoom) = 0;
 	virtual unsigned getPageCount() const = 0;

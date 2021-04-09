@@ -1839,21 +1839,20 @@ protected:
 
 		if (m_wipeMode == WIPE_VERTICAL)
 		{
-			auto tmp = new unsigned char[w * 4];
+            std::vector<unsigned char> tmp(w * 4);
 			for (unsigned y = m_wipePosition; y < h; ++y)
 			{
 				for (int pane = 0; pane < m_nImages - 1; ++pane)
 				{
 					unsigned char *scanline  = m_imgDiff[pane].scanLine(y);
 					unsigned char *scanline2 = m_imgDiff[pane + 1].scanLine(y);
-					memcpy(tmp, scanline, w * 4);
+                    memcpy(tmp.data(), scanline, w * 4);
 					memcpy(scanline, scanline2, w * 4);
-					memcpy(scanline2, tmp, w * 4);
+                    memcpy(scanline2, tmp.data(), w * 4);
 				}
-			}
-			delete tmp;
+            }
 		}
-		else if (m_wipeMode = WIPE_HORIZONTAL)
+        else if (m_wipeMode == WIPE_HORIZONTAL)
 		{
 			for (unsigned y = 0; y < h; ++y)
 			{

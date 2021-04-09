@@ -474,7 +474,7 @@ public:
 		return true;
 	}
 
-	bool SaveImage(int pane)
+    bool SaveImage(const int pane)
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
@@ -482,7 +482,9 @@ public:
 			return false;
 		if (!m_undoRecords.is_modified(pane))
 			return true;
-		bool result = SaveImageAs(pane, (m_filename[pane] + (m_imgConverter[pane].isValid() ? L".png" : L"")).c_str());
+        std::filesystem::path filename = m_filename[pane];
+        filename += (m_imgConverter[pane].isValid() ? ".png" : "");
+        const bool result = SaveImageAs(pane, filename);
 		if (result)
 			m_undoRecords.save(pane);
 		return result;
@@ -496,7 +498,7 @@ public:
 		return true;
 	}
 
-	bool SaveImageAs(int pane, const wchar_t *filename)
+    bool SaveImageAs(int pane, const std::filesystem::path &filename)
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
