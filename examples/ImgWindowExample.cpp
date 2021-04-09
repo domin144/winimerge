@@ -84,14 +84,14 @@ int main(const int argc, char* argv[])
     window.add(box);
 
     CImgWindow imgWindow;
-    box.pack_start(imgWindow);
+    box.pack_start(imgWindow, Gtk::PACK_EXPAND_WIDGET);
 
     Gtk::SpinButton zoom {Gtk::Adjustment::create(1, 0.001, 1000, 0.1, 1, 1)};
     zoom.set_digits(3);
     zoom.signal_value_changed().connect(sigc::track_obj(
         [&zoom, &imgWindow]() { imgWindow.SetZoom(zoom.get_value()); },
         imgWindow));
-    box.pack_start(zoom);
+    box.pack_start(zoom, Gtk::PACK_SHRINK);
 
 	fipImage image = makeButterFly();
 	image.save("test.png");
