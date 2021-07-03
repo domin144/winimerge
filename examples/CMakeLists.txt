@@ -8,3 +8,7 @@ target_link_libraries(ImgWindowExample PRIVATE WinIMerge)
 add_executable(ImgMergeBufferExample)
 target_sources(ImgMergeBufferExample PRIVATE ImgMergeBufferExample.cpp)
 target_link_libraries(ImgMergeBufferExample PRIVATE WinIMerge)
+
+add_executable(ImgMergeWindowExample)
+target_sources(ImgMergeWindowExample PRIVATE ImgMergeWindowExample.cpp)
+target_link_libraries(ImgMergeWindowExample PRIVATE WinIMerge)

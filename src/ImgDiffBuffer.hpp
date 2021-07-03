@@ -410,7 +410,7 @@ class DataForONPDiff
 		DatumForONPDiff(DataForONPDiff& data, int index) : 
 			m_data(data), m_index(index) { }
 
-		bool operator==(const DatumForONPDiff& other)
+		bool operator==(const DatumForONPDiff& other) const
 		{
 			return alineEquals(
 				m_data.m_img, other.m_data.m_img,

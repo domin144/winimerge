@@ -419,8 +419,12 @@ public:
 		return nMerged;
 	}
 
-	bool DeleteRectangle(int pane, int left, int top, int right, int bottom)
+	bool DeleteRectangle(int pane, const RECT& rectangle)
 	{
+		const int left = rectangle.get_x();
+		const int right = left + rectangle.get_width();
+		const int top = rectangle.get_y();
+		const int bottom = top + rectangle.get_height();
 		if (pane < 0 || pane >= m_nImages || m_bRO[pane])
 			return false;
 

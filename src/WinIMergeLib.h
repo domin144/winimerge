@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include <FreeImagePlus.h>
 #include <ImgDiffBuffer.hpp>
 #include <gdkmm/rectangle.h>
 #include <gdkmm/rgba.h>
-#include <gtkmm/window.h>
+#include <gtkmm/frame.h>
 
-class IImgMergeWindow : public Gtk::Window
+class IImgMergeWindow : public Gtk::Frame
 {
 public:
 	enum INSERTION_DELETION_DETECTION_MODE {
@@ -63,37 +64,42 @@ public:
 	};
 	typedef void (*EventListenerFunc)(const Event& evt);
 private:
-	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2) = 0;
-	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2, const wchar_t *filename3) = 0;
+	virtual bool OpenImages(
+		const std::filesystem::path& filename1,
+		const std::filesystem::path& filename2) = 0;
+	virtual bool OpenImages(
+		const std::filesystem::path& filename1,
+		const std::filesystem::path& filename2,
+		const std::filesystem::path& filename3) = 0;
 	virtual bool ReloadImages() = 0;
 	virtual bool SaveImages() = 0;
 	virtual bool SaveImage(int pane) = 0;
 	virtual bool SaveImageAs(int pane, const wchar_t *filename) = 0;
 	virtual bool SaveDiffImageAs(int pane, const wchar_t *filename) = 0;
-	virtual const wchar_t *GetFileName(int pane) = 0;
-	virtual int  GetPaneCount() const = 0;
-    virtual RECT GetPaneWindowRect(int pane) const = 0;
-    virtual RECT GetWindowRect() const = 0;
-    virtual bool SetWindowRect(const RECT& rc) = 0;
-    virtual POINT GetCursorPos(int pane) const = 0;
+    virtual std::filesystem::path GetFileName(int pane) = 0;
+    virtual int GetPaneCount() const = 0;
+//    virtual RECT GetPaneWindowRect(int pane) const = 0;
+//    virtual RECT GetWindowRect() const = 0;
+//    virtual bool SetWindowRect(const RECT& rc) = 0;
+//    virtual POINT GetCursorPos(int pane) const = 0;
 	virtual RGBQUAD GetPixelColor(int pane, int x, int y) const = 0;
 	virtual double GetColorDistance(int pane1, int pane2, int x, int y) const = 0;
 	virtual int  GetActivePane() const = 0;
 	virtual void SetActivePane(int pane) = 0;
 	virtual bool GetReadOnly(int pane) const = 0;
 	virtual void SetReadOnly(int pane, bool readOnly) = 0;
-	virtual bool GetHorizontalSplit() const = 0;
-	virtual void SetHorizontalSplit(bool horizontalSplit) = 0;
+	virtual Gtk::Orientation getSplitOrientation() const = 0;
+	virtual void setSplitOrientation(const Gtk::Orientation orientation) = 0;
 	virtual int  GetCurrentPage(int pane) const = 0;
 	virtual void SetCurrentPage(int pane, int page) = 0;
 	virtual int  GetCurrentMaxPage() const = 0;
 	virtual void SetCurrentPageAll(int page) = 0;
 	virtual int  GetPageCount(int pane) const = 0;
 	virtual int  GetMaxPageCount() const = 0;
-	virtual COLORREF GetDiffColor() const = 0;
-	virtual void SetDiffColor(COLORREF clrDiffColor) = 0;
-	virtual COLORREF GetSelDiffColor() const = 0;
-	virtual void SetSelDiffColor(COLORREF clrSelDiffColor) = 0;
+    virtual RGBQUAD GetDiffColor() const = 0;
+    virtual void SetDiffColor(RGBQUAD clrDiffColor) = 0;
+    virtual RGBQUAD GetSelDiffColor() const = 0;
+    virtual void SetSelDiffColor(RGBQUAD clrSelDiffColor) = 0;
 	virtual double GetDiffColorAlpha() const = 0;
 	virtual void SetDiffColorAlpha(double diffColorAlpha) = 0;
 	virtual RGBQUAD GetBackColor() const = 0;
@@ -149,10 +155,10 @@ private:
 	virtual size_t GetMetadata(int pane, char *buf, size_t bufsize) const = 0;
 	virtual INSERTION_DELETION_DETECTION_MODE GetInsertionDeletionDetectionMode() const = 0;
 	virtual void SetInsertionDeletionDetectionMode(INSERTION_DELETION_DETECTION_MODE insertionDeletionDetectionMode) = 0;
-	virtual COLORREF GetDiffDeletedColor() const = 0;
-	virtual void SetDiffDeletedColor(COLORREF clrDiffDeletedColor) = 0;
-	virtual COLORREF GetSelDiffDeletedColor() const = 0;
-	virtual void SetSelDiffDeletedColor(COLORREF clrSelDiffDeletedColor) = 0;
+    virtual RGBQUAD GetDiffDeletedColor() const = 0;
+    virtual void SetDiffDeletedColor(RGBQUAD clrDiffDeletedColor) = 0;
+    virtual RGBQUAD GetSelDiffDeletedColor() const = 0;
+    virtual void SetSelDiffDeletedColor(RGBQUAD clrSelDiffDeletedColor) = 0;
 	virtual bool ConvertToRealPos(int pane, const POINT& pt, POINT& ptReal) const = 0;
 	virtual float GetVectorImageZoomRatio() const = 0;
 	virtual void SetVectorImageZoomRatio(float zoom) = 0;
@@ -173,7 +179,7 @@ private:
     virtual std::string ExtractTextFromImage(int pane, int page, OCR_RESULT_TYPE resultType) = 0;
 };
 
-class IImgToolWindow : public Gtk::Window
+class IImgToolWindow : public Gtk::Frame
 {
 public:
     using TranslateCallback = void(*)(int id, const wchar_t *org, size_t dstbufsize, wchar_t *dst);

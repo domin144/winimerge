@@ -18,7 +18,7 @@ target_sources(
         src/ImgConverter.hpp
         src/ImgDiffBuffer.hpp
         src/ImgMergeBuffer.hpp
-#        src/ImgMergeWindow.hpp
+        src/ImgMergeWindow.hpp
 #        src/ImgToolWindow.hpp
         src/ImgWindow.hpp
         src/ImgWindow.cpp
@@ -29,7 +29,7 @@ target_sources(
 #        src/WinIMerge.cpp
 #        src/WinIMerge.h
 #        src/WinIMergeLib.cpp
-#        src/WinIMergeLib.h
+        src/WinIMergeLib.h
 )
 
 target_link_libraries(

@@ -165,35 +165,35 @@ public:
 //		InvalidateRect(m_hWnd, NULL, FALSE);
 //	}
 
-//	RGBQUAD GetBackColor() const
-//	{
-//		return m_backColor;
-//	}
+	RGBQUAD GetBackColor() const
+	{
+		return m_backColor;
+	}
 
-//	void SetBackColor(RGBQUAD backColor)
-//	{
-//		m_backColor = backColor;
-//		if (m_fip)
-//		{
-//			m_fip->setModified(true);
+	void SetBackColor(RGBQUAD backColor)
+	{
+		m_backColor = backColor;
+		if (m_fip)
+		{
+			m_fip->setModified(true);
 //			InvalidateRect(m_hWnd, NULL, TRUE);
-//		}
-//	}
+		}
+	}
 
-//	bool GetUseBackColor() const
-//	{
-//		return m_useBackColor;
-//	}
+	bool GetUseBackColor() const
+	{
+		return m_useBackColor;
+	}
 
-//	void SetUseBackColor(bool useBackColor)
-//	{
-//		m_useBackColor = useBackColor;
-//		if (m_fip)
-//		{
-//			m_fip->setModified(true);
+	void SetUseBackColor(bool useBackColor)
+	{
+		m_useBackColor = useBackColor;
+		if (m_fip)
+		{
+			m_fip->setModified(true);
 //			InvalidateRect(m_hWnd, NULL, TRUE);
-//		}
-//	}
+		}
+	}
 
     double GetZoom() const;
     void SetZoom(const double zoom);
@@ -461,8 +461,8 @@ private:
 	POINT m_ptOverlappedImage;
 	POINT m_ptOverlappedImageCursor;
 	double m_zoom;
-//	bool m_useBackColor;
-//	RGBQUAD m_backColor;
+	bool m_useBackColor;
+	RGBQUAD m_backColor;
 	bool m_visibleRectangleSelection;
 	POINT m_ptSelectionStart;
 	POINT m_ptSelectionEnd;

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <filesystem>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace ocr
@@ -15,19 +17,19 @@ struct Rect
 
 struct Word
 {
-	std::wstring text;
+	std::string text;
 	Rect rect;
 };
 
 struct Line
 {
-	std::wstring text;
+	std::string text;
 	std::vector<Word> words;
 };
 
 struct Result
 {
-	std::wstring text;
+	std::string text;
 	std::optional<double> textAngle;
 	std::vector<Line> lines;
 };
@@ -369,10 +371,10 @@ class COcr
 {
 public:
 	bool isValid() const { return false; }
-	bool load(const wchar_t* filename) { return false; }
+	bool load(const std::filesystem::path&) { return false; }
 	bool extractText(Result& result)
 	{
-		const std::wstring msg = L"This function is not supported on 32bit version";
+		const std::string msg = "This function is not supported on 32bit version";
 		result.text = msg;
 		Line line;
 		line.text = msg;
