@@ -71,8 +71,9 @@ public:
 		m_box.set_orientation(Gtk::Orientation::ORIENTATION_HORIZONTAL);
 		for (auto& pane : m_panes)
 		{
-			m_box.add(pane);
+			m_box.pack_start(pane, Gtk::PACK_EXPAND_WIDGET);
 			pane.hide();
+			pane.set_no_show_all(true);
 		}
 	}
 

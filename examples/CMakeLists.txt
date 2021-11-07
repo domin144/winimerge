@@ -1,14 +1,18 @@
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+add_library(ExampleUtils)
+target_sources(ExampleUtils PRIVATE SampleImages.cpp SampleImages.hpp)
+target_link_libraries(ExampleUtils PUBLIC WinIMerge)
+
 add_executable(ImgWindowExample)
 target_sources(ImgWindowExample PRIVATE ImgWindowExample.cpp)
-target_link_libraries(ImgWindowExample PRIVATE WinIMerge)
+target_link_libraries(ImgWindowExample PRIVATE ExampleUtils)
 
 add_executable(ImgMergeBufferExample)
 target_sources(ImgMergeBufferExample PRIVATE ImgMergeBufferExample.cpp)
-target_link_libraries(ImgMergeBufferExample PRIVATE WinIMerge)
+target_link_libraries(ImgMergeBufferExample PRIVATE ExampleUtils)
 
 add_executable(ImgMergeWindowExample)
 target_sources(ImgMergeWindowExample PRIVATE ImgMergeWindowExample.cpp)
-target_link_libraries(ImgMergeWindowExample PRIVATE WinIMerge)
+target_link_libraries(ImgMergeWindowExample PRIVATE ExampleUtils)
