@@ -1,0 +1,3 @@
+#define GEN_VER_VERSION_STRING "@VCS_TAG@"
+/* TODO: make python script to translate the version */
+#define GEN_VER_DIGITAL_VERSION 0,0,0,0
