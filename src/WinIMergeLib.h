@@ -63,7 +63,7 @@ public:
 		int diffIndex;
 	};
 	typedef void (*EventListenerFunc)(const Event& evt);
-private:
+
 	virtual bool OpenImages(
 		const std::filesystem::path& filename1,
 		const std::filesystem::path& filename2) = 0;

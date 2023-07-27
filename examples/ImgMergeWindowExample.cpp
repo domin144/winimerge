@@ -1,5 +1,6 @@
 #include "SampleImages.hpp"
 #include <ImgMergeWindow.hpp>
+#include <ImgToolWindow.hpp>
 #include <gtkmm/application.h>
 #include <gtkmm/box.h>
 #include <gtkmm/spinbutton.h>
@@ -16,6 +17,8 @@ int main(const int argc, char* argv[])
 
     CImgMergeWindow imgMergeWindow;
     box.pack_start(imgMergeWindow, Gtk::PACK_EXPAND_WIDGET);
+
+
 
     window.show_all();
 

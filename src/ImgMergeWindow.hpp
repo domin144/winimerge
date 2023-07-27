@@ -36,9 +36,7 @@ private:
 		void *userdata;
 	};
 
-	int m_visible_panes_count;
-//	HWND m_hWnd;
-//	HINSTANCE m_hInstance;
+    int m_visible_panes_count;
     Gtk::Box m_box;
     std::array<CImgWindow, 3> m_panes;
 //	WNDPROC m_ChildWndProc[3];

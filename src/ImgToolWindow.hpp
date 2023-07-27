@@ -1,9 +1,13 @@
-#include <WindowsX.h>
-#include <CommCtrl.h>
-#include <tchar.h>
 #include "ImgMergeWindow.hpp"
 #include "WinIMergeLib.h"
 #include "resource.h"
+#include <CommCtrl.h>
+#include <WindowsX.h>
+#include <gtkmm/checkbutton.h>
+#include <gtkmm/combobox.h>
+#include <gtkmm/scale.h>
+#include <gtkmm/spinbutton.h>
+#include <tchar.h>
 
 #pragma once
 
@@ -11,9 +15,9 @@ class CImgToolWindow : public IImgToolWindow
 {
 public:
 	CImgToolWindow() :
-		  m_hWnd(NULL)
+/*		  m_hWnd(NULL)
 		, m_hInstance(NULL)
-		, m_pImgMergeWindow(NULL)
+		,*/ m_pImgMergeWindow(NULL)
 		, m_bInSync(false)
 	{
 	}
@@ -22,24 +26,19 @@ public:
 	{
 	}
 
-	bool Create(HINSTANCE hInstance, HWND hWndParent)
-	{
-		m_hInstance = hInstance;
-		m_hWnd = CreateDialogParam(hInstance, MAKEINTRESOURCE(IDD_DIALOGBAR), hWndParent, DlgProc, reinterpret_cast<LPARAM>(this));
-		return m_hWnd ? true : false;
-	}
+//	bool Create(HINSTANCE hInstance, HWND hWndParent)
+//	{
+//		m_hInstance = hInstance;
+//		m_hWnd = CreateDialogParam(hInstance, MAKEINTRESOURCE(IDD_DIALOGBAR), hWndParent, DlgProc, reinterpret_cast<LPARAM>(this));
+//		return m_hWnd ? true : false;
+//	}
 
-	bool Destroy()
-	{
-		BOOL bSucceeded = DestroyWindow(m_hWnd);
-		m_hWnd = NULL;
-		return !!bSucceeded;
-	}
-
-	HWND GetHWND() const override
-	{
-		return m_hWnd;
-	}
+//	bool Destroy()
+//	{
+//		BOOL bSucceeded = DestroyWindow(m_hWnd);
+//		m_hWnd = NULL;
+//		return !!bSucceeded;
+//	}
 
 	void Sync() override
 	{
@@ -48,16 +47,16 @@ public:
 
 		m_bInSync = true;
 
-		TCHAR buf[256];
-		wsprintf(buf, _T("(%d)"), m_pImgMergeWindow->GetDiffBlockSize());
+		char buf[256];
+		std::sprintf(buf, "(%d)", m_pImgMergeWindow->GetDiffBlockSize());
 		SetDlgItemText(m_hWnd, IDC_DIFF_BLOCKSIZE_STATIC, buf);
-		wsprintf(buf, _T("(%d)"), static_cast<int>(m_pImgMergeWindow->GetDiffColorAlpha() * 100));
+		std::sprintf(buf, "(%d)", static_cast<int>(m_pImgMergeWindow->GetDiffColorAlpha() * 100));
 		SetDlgItemText(m_hWnd, IDC_DIFF_BLOCKALPHA_STATIC, buf);
-		wsprintf(buf, _T("(%d)"), static_cast<int>(m_pImgMergeWindow->GetColorDistanceThreshold()));
+		std::sprintf(buf, "(%d)", static_cast<int>(m_pImgMergeWindow->GetColorDistanceThreshold()));
 		SetDlgItemText(m_hWnd, IDC_DIFF_CDTHRESHOLD_STATIC, buf);
-		wsprintf(buf, _T("(%d)"), static_cast<int>(m_pImgMergeWindow->GetOverlayAlpha() * 100));
+		std::sprintf(buf, "(%d)", static_cast<int>(m_pImgMergeWindow->GetOverlayAlpha() * 100));
 		SetDlgItemText(m_hWnd, IDC_OVERLAY_ALPHA_STATIC, buf);
-		wsprintf(buf, _T("(%d%%)"), static_cast<int>(100 * m_pImgMergeWindow->GetZoom()));
+		std::sprintf(buf, "(%d%%)", static_cast<int>(100 * m_pImgMergeWindow->GetZoom()));
 		SetDlgItemText(m_hWnd, IDC_ZOOM_STATIC, buf);
 
 		SendDlgItemMessage(m_hWnd, IDC_DIFF_HIGHLIGHT, BM_SETCHECK, m_pImgMergeWindow->GetShowDifferences() ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -393,4 +392,21 @@ private:
 	HINSTANCE m_hInstance;
 	IImgMergeWindow *m_pImgMergeWindow;
 	bool m_bInSync;
+
+	Gtk::Frame m_diffFrame;
+	Gtk::CheckButton m_highlightButton;
+	Gtk::CheckButton m_blinkButton;
+	Gtk::Scale m_BlockSizeScale;
+	Gtk::Scale m_AlphaScale;
+	Gtk::Scale m_CdTresholdScale;
+	Gtk::ComboBox m_InsertionDeletionDirectionModeComboBox;
+
+	Gtk::Frame m_overlayFrame;
+	Gtk::ComboBox m_overlayModeComboBox;
+
+	Gtk::Frame m_viewFrame;
+	Gtk::Scale m_zoomScale;
+	Gtk::SpinButton m_pageSpinButton;
+
+	/* Gtk::Label m_diffMap; */
 };
