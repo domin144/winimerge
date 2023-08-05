@@ -15,6 +15,10 @@
 //    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 /////////////////////////////////////////////////////////////////////////////
 
+/* Hack: prevent windows.h from hijacking min and max names. This breaks
+ * OpenImageIO */
+#define NOMINMAX
+
 #include <Windows.h>
 #include <gdiplus.h>
 #include "ImgWindow.hpp"

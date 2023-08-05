@@ -18,262 +18,314 @@
 #pragma once
 #pragma warning(disable: 4819)
 
-#include "FreeImagePlus.h"
 #include <boost/nowide/convert.hpp>
+#include <OpenImageIO/imageio.h>
+#include <OpenImageIO/typedesc.h>
+#include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imagebufalgo.h>
+// #include "FreeImagePlus.h"
 #include <algorithm>
 #include <filesystem>
 #include <string>
 #include <map>
+#include <array>
 
-#ifndef _WIN32
-typedef fipImage fipWinImage;
-#endif
+// class fipImageEx
+// {
+// private:
+// 	OIIO::ImageBuf image_;
+// public:
+// 	fipImageEx(OIIO::TypeDesc image_type = FIT_BITMAP, unsigned width = 0, unsigned height = 0, unsigned bpp = 0)
+// 		: fipWinImage(image_type, width, height, bpp) {}
+// 	fipImageEx(const fipImageEx& Image) { *this = Image; }
+// 	explicit fipImageEx(const fipWinImage& Image) { *this = Image; }
+// 	explicit fipImageEx(FIBITMAP *bitmap) { *this = bitmap; }
+// 	virtual ~fipImageEx() {}
 
-class fipImageEx : public fipWinImage
-{
-public:
-	fipImageEx(FREE_IMAGE_TYPE image_type = FIT_BITMAP, unsigned width = 0, unsigned height = 0, unsigned bpp = 0)
-		: fipWinImage(image_type, width, height, bpp) {}
-	fipImageEx(const fipImageEx& Image) { *this = Image; }
-	explicit fipImageEx(const fipWinImage& Image) { *this = Image; }
-	explicit fipImageEx(FIBITMAP *bitmap) { *this = bitmap; }
-	virtual ~fipImageEx() {}
+// 	fipImageEx& operator=(const fipImageEx& Image)
+// 	{
+// 		if (this != &Image)
+// 		{
+// 			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(Image._dib));
+// 			replace(clone);
+// 			_fif = Image._fif;
+// 		}
+// 		return *this;
+// 	}
 
-	fipImageEx& operator=(const fipImageEx& Image)
-	{
-		if (this != &Image)
-		{
-			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(Image._dib));
-			replace(clone);
-			_fif = Image._fif;
-		}
-		return *this;
-	}
+// 	fipImageEx& operator=(const fipWinImage& Image)
+// 	{
+// 		if (this != &Image)
+// 		{
+// 			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(const_cast<fipWinImage&>(Image)));
+// 			replace(clone);
+// 			_fif = Image.getFIF();
+// 		}
+// 		return *this;
+// 	}
 
-	fipImageEx& operator=(const fipWinImage& Image)
-	{
-		if (this != &Image)
-		{
-			FIBITMAP *clone = FreeImage_Clone(static_cast<FIBITMAP*>(const_cast<fipWinImage&>(Image)));
-			replace(clone);
-			_fif = Image.getFIF();
-		}
-		return *this;
-	}
+// 	fipImageEx& operator=(FIBITMAP *dib)
+// 	{
+// 		if (_dib != dib)
+// 			replace(dib);
+// 		return *this;
+// 	}
 
-	fipImageEx& operator=(FIBITMAP *dib)
-	{
-		if (_dib != dib)
-			replace(dib);
-		return *this;
-	}
+// 	void swap(fipImageEx& other)
+// 	{
+// 		std::swap(_dib, other._dib);
+// 		std::swap(this->_fif, other._fif);
+// 		std::swap(this->_bHasChanged, other._bHasChanged);
+// 	}
 
-	void swap(fipImageEx& other)
-	{
-		std::swap(_dib, other._dib);
-		std::swap(this->_fif, other._fif);
-		std::swap(this->_bHasChanged, other._bHasChanged);
-	}
+// 	FIBITMAP *detach()
+// 	{
+// 		FIBITMAP *dib = _dib;
+// 		_dib = NULL;
+// 		clear();
+// 		return dib;
+// 	}
 
-	FIBITMAP *detach()
-	{
-		FIBITMAP *dib = _dib;
-		_dib = NULL;
-		clear();
-		return dib;
-	}
+// 	BOOL colorQuantizeEx(FREE_IMAGE_QUANTIZE quantize = FIQ_WUQUANT, int PaletteSize = 256, int ReserveSize = 0, RGBQUAD *ReservePalette = NULL)
+// 	{
+// 		if(_dib) {
+// 			FIBITMAP *dib8 = FreeImage_ColorQuantizeEx(_dib, quantize, PaletteSize, ReserveSize, ReservePalette);
+// 			return !!replace(dib8);
+// 		}
+// 		return false;
+// 	}
 
-	BOOL colorQuantizeEx(FREE_IMAGE_QUANTIZE quantize = FIQ_WUQUANT, int PaletteSize = 256, int ReserveSize = 0, RGBQUAD *ReservePalette = NULL)
-	{
-		if(_dib) {
-			FIBITMAP *dib8 = FreeImage_ColorQuantizeEx(_dib, quantize, PaletteSize, ReserveSize, ReservePalette);
-			return !!replace(dib8);
-		}
-		return false;
-	}
+// 	bool convertColorDepth(unsigned bpp, RGBQUAD *pPalette = NULL)
+// 	{
+// 		switch (bpp)
+// 		{
+// 		case 1:
+// 			return !!threshold(128);
+// 		case 4:
+// 		{
+// 			fipImageEx tmp = *this;
+// 			tmp.convertTo24Bits();
+// 			if (pPalette)
+// 				tmp.colorQuantizeEx(FIQ_NNQUANT, 16, 16, pPalette);
+// 			else
+// 				tmp.colorQuantizeEx(FIQ_WUQUANT, 16);
+// 			setSize(tmp.getImageType(), tmp.getWidth(), tmp.getHeight(), 4);
+// 			for (unsigned y = 0; y < tmp.getHeight(); ++y)
+// 			{
+// 				const BYTE *line_src = tmp.getScanLine(y);
+// 				BYTE *line_dst = getScanLine(y);
+// 				for (unsigned x = 0; x < tmp.getWidth(); ++x)
+// 					line_dst[x / 2] |= ((x % 2) == 0) ? (line_src[x] << 4) : line_src[x];
+// 			}
 
-	bool convertColorDepth(unsigned bpp, RGBQUAD *pPalette = NULL)
-	{
-		switch (bpp)
-		{
-		case 1:
-			return !!threshold(128);
-		case 4:
-		{
-			fipImageEx tmp = *this;
-			tmp.convertTo24Bits();
-			if (pPalette)
-				tmp.colorQuantizeEx(FIQ_NNQUANT, 16, 16, pPalette);
-			else
-				tmp.colorQuantizeEx(FIQ_WUQUANT, 16);
-			setSize(tmp.getImageType(), tmp.getWidth(), tmp.getHeight(), 4);
-			for (unsigned y = 0; y < tmp.getHeight(); ++y)
-			{
-				const BYTE *line_src = tmp.getScanLine(y);
-				BYTE *line_dst = getScanLine(y);
-				for (unsigned x = 0; x < tmp.getWidth(); ++x)
-					line_dst[x / 2] |= ((x % 2) == 0) ? (line_src[x] << 4) : line_src[x];
-			}
+// 			RGBQUAD *rgbq_dst = getPalette();
+// 			RGBQUAD *rgbq_src = pPalette ? pPalette : tmp.getPalette();
+// 			memcpy(rgbq_dst, rgbq_src, sizeof(RGBQUAD) * 16);
+// 			return true;
+// 		}
+// 		case 8:
+// 			convertTo24Bits();
+// 			if (pPalette)
+// 				return !!colorQuantizeEx(FIQ_NNQUANT, 256, 256, pPalette);
+// 			else
+// 				return !!colorQuantizeEx(FIQ_WUQUANT, 256);
+// 		case 15:
+// 			return !!convertTo16Bits555();
+// 		case 16:
+// 			return !!convertTo16Bits565();
+// 		case 24:
+// 			return !!convertTo24Bits();
+// 		default:
+// 		case 32:
+// 			return !!convertTo32Bits();
+// 		}
+// 	}
 
-			RGBQUAD *rgbq_dst = getPalette();
-			RGBQUAD *rgbq_src = pPalette ? pPalette : tmp.getPalette();
-			memcpy(rgbq_dst, rgbq_src, sizeof(RGBQUAD) * 16);
-			return true;
-		}
-		case 8:
-			convertTo24Bits();
-			if (pPalette)
-				return !!colorQuantizeEx(FIQ_NNQUANT, 256, 256, pPalette);
-			else
-				return !!colorQuantizeEx(FIQ_WUQUANT, 256);
-		case 15:
-			return !!convertTo16Bits555();
-		case 16:
-			return !!convertTo16Bits565();
-		case 24:
-			return !!convertTo24Bits();
-		default:
-		case 32:
-			return !!convertTo32Bits();
-		}
-	}
+// 	void copyAnimationMetadata(fipImage& src)
+// 	{
+// 		fipTag tag;
+// 		fipMetadataFind finder;
+// 		if (finder.findFirstMetadata(FIMD_ANIMATION, src, tag))
+// 		{
+// 			do
+// 			{
+// 				setMetadata(FIMD_ANIMATION, tag.getKey(), tag);
+// 			} while (finder.findNextMetadata(tag));
+// 		}
+// 	}
+// };
 
-	void copyAnimationMetadata(fipImage& src)
-	{
-		fipTag tag;
-		fipMetadataFind finder;
-		if (finder.findFirstMetadata(FIMD_ANIMATION, src, tag))
-		{
-			do
-			{
-				setMetadata(FIMD_ANIMATION, tag.getKey(), tag);
-			} while (finder.findNextMetadata(tag));
-		}
-	}
-};
+// class fipMultiPageEx : public fipMultiPage
+// {
+// public:
+// 	explicit fipMultiPageEx(BOOL keep_cache_in_memory = FALSE)
+// 		: fipMultiPage(keep_cache_in_memory)
+// 		, m_handle(NULL)
+// 	{
+// 	}
 
-class fipMultiPageEx : public fipMultiPage
-{
-public:
-	explicit fipMultiPageEx(BOOL keep_cache_in_memory = FALSE)
-		: fipMultiPage(keep_cache_in_memory)
-		, m_handle(NULL)
-	{
-	}
+// 	BOOL openU(const wchar_t* lpszPathName, BOOL create_new, BOOL read_only, int flags = 0)
+// 	{
+// 		FILE *fp = NULL;
+// #ifdef _WIN32
+// 		_wfopen_s(&fp, lpszPathName, L"r+b");
+// 		if (fp != NULL && !read_only)
+// 		{
+// 			WCHAR szTempPathName[MAX_PATH];
+// 			DWORD cchTempPath = GetTempPathW(_countof(szTempPathName), szTempPathName);
+// 			if (cchTempPath <= MAX_PATH - 40)
+// 			{
+// 				GUID guid;
+// 				CoCreateGuid(&guid);
+// 				StringFromGUID2(guid, szTempPathName + cchTempPath, 40);
+// 				FILE *fpTmp = NULL;
+// 				// Create file with "D" option so it vanishes when closed
+// 				_wfopen_s(&fpTmp, szTempPathName, L"w+bD");
+// 				if (fpTmp != NULL)
+// 				{
+// 					char buffer[16384];
+// 					while (size_t bytes = fread(buffer, 1, sizeof buffer, fp))
+// 					{
+// 						if (fwrite(buffer, 1, bytes, fpTmp) != bytes)
+// 						{
+// 							fclose(fpTmp);
+// 							fpTmp = NULL;
+// 							break;
+// 						}
+// 					}
+// 					fclose(fp);
+// 					fp = fpTmp;
+// 				}
+// 			}
+// 		}
+// #else
+// 		char filename[260];
+// 		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
+// 		fp = fopen(filename, "r+b");
+// #endif
+// 		if (fp != NULL)
+// 		{
+// 			FreeImageIO io;
+// 			io.read_proc = myReadProc;
+// 			io.write_proc = myWriteProc;
+// 			io.seek_proc = mySeekProc;
+// 			io.tell_proc = myTellProc;
+// 			FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
+// 			_mpage = FreeImage_OpenMultiBitmapFromHandle(fif, &io, fp, flags);
+// 			if (_mpage != NULL)
+// 			{
+// 				m_handle = fp;
+// 			}
+// 			else
+// 			{
+// 				fclose(fp);
+// 			}
+// 		}
+// 		return _mpage != NULL;
+// 	}
 
-	BOOL openU(const wchar_t* lpszPathName, BOOL create_new, BOOL read_only, int flags = 0)
-	{
-		FILE *fp = NULL;
-#ifdef _WIN32
-		_wfopen_s(&fp, lpszPathName, L"rb");
-		if (fp != NULL && !read_only)
-		{
-			WCHAR szTempPathName[MAX_PATH];
-			DWORD cchTempPath = GetTempPathW(_countof(szTempPathName), szTempPathName);
-			if (cchTempPath <= MAX_PATH - 40)
-			{
-				GUID guid;
-				CoCreateGuid(&guid);
-				StringFromGUID2(guid, szTempPathName + cchTempPath, 40);
-				FILE *fpTmp = NULL;
-				// Create file with "D" option so it vanishes when closed
-				_wfopen_s(&fpTmp, szTempPathName, L"w+bD");
-				if (fpTmp != NULL)
-				{
-					char buffer[16384];
-					while (size_t bytes = fread(buffer, 1, sizeof buffer, fp))
-					{
-						if (fwrite(buffer, 1, bytes, fpTmp) != bytes)
-						{
-							fclose(fpTmp);
-							fpTmp = NULL;
-							break;
-						}
-					}
-					fclose(fp);
-					fp = fpTmp;
-				}
-			}
-		}
-#else
-		char filename[260];
-		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
-		fp = fopen(filename, "rb");
-#endif
-		if (fp != NULL)
-		{
-			FreeImageIO io;
-			io.read_proc = myReadProc;
-			io.write_proc = myWriteProc;
-			io.seek_proc = mySeekProc;
-			io.tell_proc = myTellProc;
-			FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
-			_mpage = FreeImage_OpenMultiBitmapFromHandle(fif, &io, fp, flags);
-			if (_mpage != NULL)
-			{
-				m_handle = fp;
-			}
-			else
-			{
-				fclose(fp);
-			}
-		}
-		return _mpage != NULL;
-	}
+// 	BOOL openU(const wchar_t* lpszPathName, BOOL create_new, BOOL read_only, int flags = 0)
+// 	{
+// 		FILE *fp = NULL;
+// #ifdef _WIN32
+// 		_wfopen_s(&fp, lpszPathName, L"rb");
+// 		if (fp != NULL && !read_only)
+// 		{
+// 			WCHAR szTempPathName[MAX_PATH];
+// 			DWORD cchTempPath = GetTempPathW(_countof(szTempPathName), szTempPathName);
+// 			if (cchTempPath <= MAX_PATH - 40)
+// 			{
+// 				GUID guid;
+// 				CoCreateGuid(&guid);
+// 				StringFromGUID2(guid, szTempPathName + cchTempPath, 40);
+// 				FILE *fpTmp = NULL;
+// 				// Create file with "D" option so it vanishes when closed
+// 				_wfopen_s(&fpTmp, szTempPathName, L"w+bD");
+// 				if (fpTmp != NULL)
+// 				{
+// 					char buffer[16384];
+// 					while (size_t bytes = fread(buffer, 1, sizeof buffer, fp))
+// 					{
+// 						if (fwrite(buffer, 1, bytes, fpTmp) != bytes)
+// 						{
+// 							fclose(fpTmp);
+// 							fpTmp = NULL;
+// 							break;
+// 						}
+// 					}
+// 					fclose(fp);
+// 					fp = fpTmp;
+// 				}
+// 			}
+// 		}
+// #else
+// 		char filename[260];
+// 		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
+// 		fp = fopen(filename, "rb");
+// #endif
+// 		if (fp != NULL)
+// 		{
+// 			FreeImageIO io;
+// 			io.read_proc = myReadProc;
+// 			io.write_proc = myWriteProc;
+// 			io.seek_proc = mySeekProc;
+// 			io.tell_proc = myTellProc;
+// 			FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
+// 			_mpage = FreeImage_OpenMultiBitmapFromHandle(fif, &io, fp, flags);
+// 			if (_mpage != NULL)
+// 			{
+// 				m_handle = fp;
+// 			}
+// 			else
+// 			{
+// 				fclose(fp);
+// 			}
+// 		}
+// 		return _mpage != NULL;
+// 	}
 
-	BOOL close(int flags = 0)
-	{
-		BOOL bSuccess = fipMultiPage::close(flags);
-		if (m_handle != NULL)
-		{
-			fclose(m_handle);
-			m_handle = NULL;
-		}
-		return bSuccess;
-	}
+// 	bool saveU(const wchar_t* lpszPathName, int flag = 0) const
+// 	{
+// 		FILE *fp = NULL;
+// #ifdef _WIN32
+// 		_wfopen_s(&fp, lpszPathName, L"w+b");
+// #else
+// 		char filename[260];
+// 		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
+// 		fp = fopen(filename, "w+b");
+// #endif
+// 		if (!fp)
+// 			return false;
+// 		FreeImageIO io;
+// 		io.read_proc  = myReadProc;
+// 		io.write_proc = myWriteProc;
+// 		io.seek_proc  = mySeekProc;
+// 		io.tell_proc  = myTellProc;
+// 		FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
+// 		bool result = !!saveToHandle(fif, &io, (fi_handle)fp, flag);
+// 		fclose(fp);
+// 		return result;
+// 	}
 
-	bool saveU(const wchar_t* lpszPathName, int flag = 0) const
-	{
-		FILE *fp = NULL;
-#ifdef _WIN32
-		_wfopen_s(&fp, lpszPathName, L"w+b");
-#else
-		char filename[260];
-		snprintf(filename, sizeof(filename), "%ls", lpszPathName);
-		fp = fopen(filename, "w+b");
-#endif
-		if (!fp)
-			return false;
-		FreeImageIO io;
-		io.read_proc  = myReadProc;
-		io.write_proc = myWriteProc;
-		io.seek_proc  = mySeekProc;
-		io.tell_proc  = myTellProc;
-		FREE_IMAGE_FORMAT fif = fipImage::identifyFIFU(lpszPathName);
-		bool result = !!saveToHandle(fif, &io, (fi_handle)fp, flag);
-		fclose(fp);
-		return result;
-	}
+// private:
+// 	FILE *m_handle; // Refers to temporary copy of original file
 
-private:
-	FILE *m_handle; // Refers to temporary copy of original file
+// 	static unsigned DLL_CALLCONV myReadProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
+// 		return (unsigned)fread(buffer, size, count, (FILE *)handle);
+// 	}
 
-	static unsigned DLL_CALLCONV myReadProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-		return (unsigned)fread(buffer, size, count, (FILE *)handle);
-	}
+// 	static unsigned DLL_CALLCONV myWriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
+// 		return (unsigned)fwrite(buffer, size, count, (FILE *)handle);
+// 	}
 
-	static unsigned DLL_CALLCONV myWriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle) {
-		return (unsigned)fwrite(buffer, size, count, (FILE *)handle);
-	}
+// 	static int DLL_CALLCONV mySeekProc(fi_handle handle, long offset, int origin) {
+// 		return fseek((FILE *)handle, offset, origin);
+// 	}
 
-	static int DLL_CALLCONV mySeekProc(fi_handle handle, long offset, int origin) {
-		return fseek((FILE *)handle, offset, origin);
-	}
-
-	static long DLL_CALLCONV myTellProc(fi_handle handle) {
-		return ftell((FILE *)handle);
-	}
-};
+// 	static long DLL_CALLCONV myTellProc(fi_handle handle) {
+// 		return ftell((FILE *)handle);
+// 	}
+// };
 
 class MultiPageImages;
 
@@ -281,47 +333,40 @@ class Image
 {
 	friend MultiPageImages;
 public:
-	typedef RGBQUAD Color;
+	static constexpr int channelsCount = 4;
+	using Color = std::array<float, channelsCount>;
 	Image() {}
-	Image(int w, int h) : image_(FIT_BITMAP, w, h, 32) {}
-	Image(const Image& other) : image_(other.image_) {}
-	explicit Image(FIBITMAP *bitmap) : image_(bitmap) {}
-	explicit Image(const fipWinImage& image) : image_(image) {}
-	BYTE *scanLine(int y) { return image_.getScanLine(image_.getHeight() - y - 1); }
-	const BYTE *scanLine(int y) const { return image_.getScanLine(image_.getHeight() - y - 1); }
-	bool convertTo32Bits() {
-		if (image_.convertTo32Bits())
-			return true;
-		return image_.convertTo8Bits() && image_.convertTo32Bits();
-	}
+	Image(int w, int h) : image_(OIIO::ImageSpec{w, h, channelsCount}) {}
+	Image(const Image& other) = default;
+	Image(Image&& other) = default;
+	Image(const OIIO::ImageBuf& image) : image_(image) {}
+	Image(OIIO::ImageBuf&& image) : image_(std::move(image)) {}
 	bool load(const std::filesystem::path& filename)
 	{
 		return !!image_.loadU(
 			boost::nowide::widen(filename.u8string()).c_str());
 	}
-	bool isSaveSupported() const { return FreeImage_FIFSupportsWriting(image_.getFIF()); }
+	bool isSaveSupported() const { return true; }
 	bool save(const std::filesystem::path& filename)
 	{
-#ifdef _WIN32
-		return !!image_.saveU(filename.c_str());
-#else
-		char filenameA[260];
-		snprintf(filenameA, sizeof(filenameA), "%ls", filename.c_str());
-		return !!image_.save(filenameA);
-#endif
+		image_.reset(filename);
+		return !image_.has_error() && image_.make_writable();
 	}
-	int depth() const { return image_.getBitsPerPixel(); }
-	unsigned width() const  { return image_.getWidth(); }
-	unsigned height() const { return image_.getHeight(); }
-	void clear() { image_.clear(); }
-	void setSize(int w, int h) { image_.setSize(FIT_BITMAP, w, h, 32); }
-	const fipImageEx *getImage() const { return &image_; }
-	fipImageEx *getFipImage() { return &image_; }
+	bool save(const std::string& filename)
+	{
+		return image_.write(filename);
+	}
+	int depth() const { return image_.spec().channel_bytes() * 8; }
+	unsigned width() const  { return image_.spec().width; }
+	unsigned height() const { return image_.spec().height; }
+	void clear() { image_.reset(); }
+	void setSize(int w, int h) { image_.reset(OIIO::ImageSpec{w, h, 4}); }
+	const OIIO::ImageBuf *getImage() const { return &image_; }
+	OIIO::ImageBuf *getFipImage() { return &image_; }
 	Color pixel(int x, int y) const
 	{
-		RGBQUAD color = {0};
-		color.rgbReserved = 0xFF;
-		image_.getPixelColor(x, image_.getHeight() - y - 1, &color);
+		Color color{0, 0, 0, 1};
+		image_.getpixel(x, height() - y - 1, color.data(), channelsCount);
 		return color;
 	}
 	void setPixel(int x, int y, Color color)
@@ -330,123 +375,136 @@ public:
 	}
 	bool copySubImage(Image& image, int x, int y, int x2, int y2) const
 	{
-		return !!image_.copySubImage(image.image_, x, y, x2, y2);
+		image.image_ = OIIO::ImageBufAlgo::cut(image_, OIIO::ROI{x, x2, y, y2});
+		return true;
 	}
 	bool pasteSubImage(const Image& image, int x, int y)
 	{
-		return !!image_.pasteSubImage(const_cast<fipImageEx&>(image.image_), x, y);
+		return OIIO::ImageBufAlgo::paste(image_, x, y, 0, 0, image.image_);
 	}
-	bool rotate(double angle)
+	bool rotate(const double angle)
 	{
-		return !!image_.rotate(angle);
+		const double rem = std::fmod(angle, 360);
+		const double normalizedAngle = rem < 0 ? rem + 360 : rem;
+		if (normalizedAngle == 0)
+		{
+			return true;
+		}
+		else if (normalizedAngle == 90)
+		{
+			image_ = OIIO::ImageBufAlgo::rotate90(image_);
+			return true;
+		}
+		else if (normalizedAngle == 180)
+		{
+			image_ = OIIO::ImageBufAlgo::rotate180(image_);
+			return true;
+		}
+		else if (normalizedAngle == 270)
+		{
+			image_ = OIIO::ImageBufAlgo::rotate270(image_);
+			return true;
+		}
+		return false;
 	}
 	bool flipHorizontal()
 	{
-		return !!image_.flipHorizontal();
+		image_ = OIIO::ImageBufAlgo::flop(image_);
+		return true;
 	}
 	bool flipVertical()
 	{
-		return !!image_.flipVertical();
+		image_ = OIIO::ImageBufAlgo::flip(image_);
+		return true;
 	}
 	bool pullImageKeepingBPP(const Image& other)
 	{
-		unsigned bpp =  image_.getBitsPerPixel();
-		RGBQUAD palette[256];
-		if (image_.getPaletteSize() > 0)
-			memcpy(palette, image_.getPalette(), image_.getPaletteSize());
-		image_ = other.image_;
-		return image_.convertColorDepth(bpp, palette);
+		image_ = OIIO::ImageBufAlgo::copy(other.image_, image_.spec().format);
+		return true;
 	}
 	std::map<std::string, std::string> getMetadata() const
 	{
 		std::map<std::string, std::string> metadata;
-		fipTag tag;
-		fipMetadataFind finder;
-		static const struct {
-			FREE_IMAGE_MDMODEL model;
-			char *name;
-		} models[] = {
-			{ FIMD_COMMENTS, "COMMENTS" },
-			{ FIMD_EXIF_MAIN, "EXIF_MAIN" },
-			{ FIMD_EXIF_EXIF, "EXIF_EXIF" },
-			{ FIMD_EXIF_GPS, "EXIF_GPS" },
-			{ FIMD_EXIF_MAKERNOTE, "EXIF_MAKERNOTE" },
-			{ FIMD_EXIF_INTEROP, "EXIF_INTEROP" },
-			{ FIMD_IPTC, "IPTC" },
-			{ FIMD_XMP, "XMP" },
-			{ FIMD_GEOTIFF, "GEOTIFF" },
-			{ FIMD_ANIMATION, "ANIMATION" },
-			{ FIMD_CUSTOM, "CUSTOM" },
-			{ FIMD_EXIF_RAW, "EXIF_RAW" },
-		};
-		for (auto m: models)
+		for (const auto &attribute : image_.spec().extra_attribs)
 		{
-			if (finder.findFirstMetadata(m.model, const_cast<fipImageEx &>(image_), tag)) {
-				do
-				{
-					metadata.insert_or_assign(std::string(m.name) + "/" + tag.getKey(), tag.toString(m.model));
-				} while (finder.findNextMetadata(tag));
-			}
+			metadata[attribute.name().string()] = attribute.get_string();
 		}
 		return metadata;
 	}
 
-	static int valueR(Color color) { return color.rgbRed; }
-	static int valueG(Color color) { return color.rgbGreen; }
-	static int valueB(Color color) { return color.rgbBlue; }
-	static int valueA(Color color) { return color.rgbReserved; }
-	static Color Rgb(int r, int g, int b)
+	static float valueR(Color color) { return color[0]; }
+	static float valueG(Color color) { return color[1]; }
+	static float valueB(Color color) { return color[2]; }
+	static float valueA(Color color) { return color[3]; }
+	static Color Rgb(const float r, const float g, const float b)
 	{
-		Color color;
-		color.rgbRed = r;
-		color.rgbGreen = g;
-		color.rgbBlue = b;
-		return color;
+		return {r, g, b, 0};
 	}
 private:
-	fipImageEx image_;
+	OIIO::ImageBuf image_;
 };
 
 class MultiPageImages
 {
 public:
 	MultiPageImages() {}
-	~MultiPageImages() { multi_.close(); }
-	bool close() { return !!multi_.close(); }
-	bool isValid() const { return !!multi_.isValid(); }
-	int getPageCount() const { return multi_.getPageCount(); }
+	~MultiPageImages() {}
+	bool close() { multi_.clear(); return true; }
+	bool isValid() const { return !multi_.empty(); }
+	
+	int getPageCount() const { return multi_.size(); }
 	bool load(const std::filesystem::path& filename)
 	{
-		return !!multi_.openU(filename.c_str(), FALSE, FALSE);
+		OIIO::ImageBuf image(filename);
+		int subimageIndex = 0;
+		while (image.read(subimageIndex))
+		{
+			multi_.emplace_back(OIIO::ImageBufAlgo::copy(image));
+			++subimageIndex;
+		}
+		return subimageIndex;
 	}
 	bool save(const std::filesystem::path& filename)
 	{
-		return !!multi_.saveU(filename.c_str());
+		if (multi_.empty())
+			return false;
+
+		std::vector<OIIO::ImageSpec> specs;
+		std::transform(
+			multi_.begin(),
+			multi_.end(),
+			std::back_inserter(specs),
+			[](const auto &x) { return x.spec(); });
+
+		auto output = OIIO::ImageOutput::create(filename);
+		output->open(filename, specs.size(), specs.data());
+		const bool result = multi_.front().write(output.get());
+		if (!result)
+			return false;
+		for (auto iter = multi_.begin() + 1; iter != multi_.end(); ++iter)
+		{
+			const bool result =
+				output->open(
+					filename,
+					iter->spec(), OIIO::ImageOutput::AppendSubimage)
+				&& iter->write(output.get());
+			if (!result)
+				return false;
+		}
+		return true;
 	}
 	Image getImage(int page)
 	{
-		FIBITMAP *bitmaptmp, *bitmap;
-		bitmaptmp = FreeImage_LockPage(multi_, page);
-		bitmap = FreeImage_Clone(bitmaptmp);
-		FreeImage_UnlockPage(multi_, bitmaptmp, false);
-		return Image(bitmap);
+		return Image{multi_[page]};
 	}
 	void insertPage(int page, const Image& image)
 	{
-		fipImageEx imgAdd = image.image_;
-		multi_.insertPage(page, imgAdd);
+		multi_.insert(multi_.begin() + page, *image.getImage());
 	}
 	void replacePage(int page, const Image& image)
 	{
-		fipImageEx imgOrg, imgAdd;
-		imgAdd = image.image_;
-		imgOrg = multi_.lockPage(page);
-		imgAdd.copyAnimationMetadata(imgOrg);
-		multi_.unlockPage(imgOrg, false);
-		multi_.insertPage(page, imgAdd);
-		imgAdd.detach();
-		multi_.deletePage(page + 1);
+		multi_[page] = *image.getImage();
 	}
 
-	fipMultiPageEx multi_;
+	std::vector<OIIO::ImageBuf> multi_;
 };
