@@ -1,10 +1,12 @@
 .vs/*
 *.VC.VC.opendb
 *.VC.db
+.vscode
 
 BuildTmp/*
 Build/*
 Dist/
+builddir
 
 *.user
 *.swp
