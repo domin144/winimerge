@@ -11,6 +11,7 @@ class WinIMergeRecipe(ConanFile):
 
     def requirements(self):
         self.requires("freeimage/[>=3.18]")
+        self.requires("openimageio/[>=2.2]")
         # jasper 4.2.0 does not compile with new VC++
         self.requires("jasper/[>=4.2.0]", override=True)
 
