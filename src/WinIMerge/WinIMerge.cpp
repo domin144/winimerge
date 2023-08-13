@@ -22,6 +22,9 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
+#include <array>
+#include <boost/nowide/convert.hpp>
 #include "resource.h"
 #include "../WinIMergeLib/WinIMergeLib.h"
 
@@ -70,11 +73,11 @@ struct CmdLineInfo
 		}
 	}
 
-	std::wstring sFileName[3];
+	std::array<std::filesystem::path, 3> sFileName;
 	int nImages;
 };
 
-bool OpenImages(HWND hWnd, int nImages, const std::wstring filename[3]);
+bool OpenImages(HWND hWnd, int nImages, const std::filesystem::path *filename);
 void UpdateMenuState(HWND hWnd);
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
@@ -87,17 +90,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 	MyRegisterClass(hInstance);
 	hInstDLL = GetModuleHandleW(L"WinIMergeLib.dll");
 
-	if (!InitInstance (hInstance, nCmdShow)) 
+	if (!InitInstance (hInstance, nCmdShow))
 		return FALSE;
 
 	HACCEL hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_WINIMERGE);
 
 	CmdLineInfo cmdline(lpCmdLine);
 	if (cmdline.nImages > 0)
-		OpenImages(m_hWnd, cmdline.nImages, cmdline.sFileName);
+		OpenImages(m_hWnd, cmdline.nImages, cmdline.sFileName.data());
 
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) 
+	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		if (!TranslateAccelerator(m_hWnd, hAccelTable, &msg) && m_hwndImgToolWindow == 0 || !IsDialogMessage(m_hwndImgToolWindow, &msg))
 		{
@@ -140,17 +143,31 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 void UpdateWindowTitle(HWND hWnd)
 {
-	wchar_t title[1024];
-	wchar_t fnames[3][260];
+	std::string title;
+	std::array<std::filesystem::path, 3> fnames;
 	for (int i = 0; i < m_pImgMergeWindow->GetPaneCount(); ++i)
-		wsprintfW(fnames[i], L"%s%s", m_pImgMergeWindow->GetFileName(i), m_pImgMergeWindow->IsModified(i) ? "*" : "");
-	int npanes = m_pImgMergeWindow->GetPaneCount();
+		fnames[i] =
+			m_pImgMergeWindow->GetFileName(i).u8string()
+			+ (m_pImgMergeWindow->IsModified(i) ? "*" : "");
+	const int npanes = m_pImgMergeWindow->GetPaneCount();
 	if (npanes == 2)
-		wsprintfW(title, L"WinIMerge(%s - %s)", fnames[0], fnames[1]);
+		title =
+			"WinIMerge("
+			+ fnames[0].u8string()
+			+ " - "
+			+ fnames[1].u8string()
+			+ ")";
 	else if (npanes == 3)
-		wsprintfW(title, L"WinIMerge(%s - %s - %s)", fnames[0], fnames[1], fnames[2]);
+		title =
+			"WinIMerge("
+			+ fnames[0].u8string()
+			+ " - "
+			+ fnames[1].u8string()
+			+ " - "
+			+ fnames[2].u8string()
+			+ ")";
 	if (npanes > 0)
-		SetWindowTextW(hWnd, title);
+		SetWindowTextW(hWnd, boost::nowide::widen(title).c_str());
 }
 
 bool NewImages(HWND hWnd, int nImages)
@@ -163,13 +180,19 @@ bool NewImages(HWND hWnd, int nImages)
 	return bSucceeded;
 }
 
-bool OpenImages(HWND hWnd, int nImages, const std::wstring filename[3])
+bool OpenImages(
+	const HWND hWnd,
+	const int nImages,
+	const std::filesystem::path *const filename)
 {
-	bool bSucceeded;
+	bool bSucceeded{false};
 	if (nImages <= 2)
-		bSucceeded = m_pImgMergeWindow->OpenImages(filename[0].c_str(), filename[1].c_str());
+		bSucceeded = m_pImgMergeWindow->OpenImages(filename[0], filename[1]);
 	else
-		bSucceeded = m_pImgMergeWindow->OpenImages(filename[0].c_str(), filename[1].c_str(), filename[2].c_str());
+		bSucceeded = m_pImgMergeWindow->OpenImages(
+			filename[0],
+			filename[1],
+			filename[2]);
 	if (bSucceeded)
 		UpdateWindowTitle(hWnd);
 	InvalidateRect(hWnd, NULL, TRUE);
@@ -182,7 +205,10 @@ void SaveImageAs(HWND hWnd, int pane)
 		return;
 	wchar_t szFileName[MAX_PATH] = {0}, szFile[MAX_PATH] = {0};
 	OPENFILENAMEW ofn = {0};
-	lstrcpyW(szFileName, m_pImgMergeWindow->GetFileName(pane));
+	lstrcpyW(
+		szFileName,
+		boost::nowide::widen(
+			m_pImgMergeWindow->GetFileName(pane).u8string()).c_str());
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hWnd;
 	ofn.lpstrFilter = ImagesFileFilter;
@@ -191,13 +217,17 @@ void SaveImageAs(HWND hWnd, int pane)
 	ofn.nMaxFile = MAX_PATH;
 	ofn.nMaxFileTitle = sizeof(szFile);
 	ofn.Flags = OFN_HIDEREADONLY;
-	wchar_t title[256];
-	wsprintfW(title, L"Save %s As",
-		(pane == 0 ? L"Left" : (pane == m_pImgMergeWindow->GetPaneCount() - 1) ? L"Right" : L"Middle"));
-	ofn.lpstrTitle = title;
+	const std::string title =
+		std::string{"Save "}
+		+ (pane == 0 ? "Left" : (pane == m_pImgMergeWindow->GetPaneCount() - 1) ? "Right" : "Middle")
+		+ " As";
+	const std::wstring titleWide = boost::nowide::widen(title);
+	ofn.lpstrTitle = titleWide.c_str();
 	if (GetSaveFileNameW(&ofn) != 0)
 	{
-		if (!m_pImgMergeWindow->SaveImageAs(pane, ofn.lpstrFile))
+		const auto outputPath =
+			std::filesystem::u8path(boost::nowide::narrow(ofn.lpstrFile));
+		if (!m_pImgMergeWindow->SaveImageAs(pane, outputPath))
 		{
 			MessageBoxW(hWnd, L"Failed to save file", nullptr, MB_OK | MB_ICONERROR);
 		}
@@ -252,7 +282,7 @@ void UpdateStatusBar()
 		if (PtInRect(&rc, ptCursor))
 			pt = m_pImgMergeWindow->GetCursorPos(pane);
 	}
-	
+
 	RGBQUAD color[3];
 	for (int pane = 0; pane < m_pImgMergeWindow->GetPaneCount(); ++pane)
 		color[pane] = m_pImgMergeWindow->GetPixelColor(pane, pt.x, pt.y);
@@ -279,7 +309,7 @@ void UpdateStatusBar()
 			RECT rc = m_pImgMergeWindow->GetRectangleSelection(pane);
 			p += wsprintfW(p, L"Rc:(%d,%d) ", rc.right - rc.left, rc.bottom - rc.top);
 		}
-		p += wsprintfW(p, L"Page:%d/%d Zoom:%d%% Diff:%d/%d %dx%dpx %dbpp ", 
+		p += wsprintfW(p, L"Page:%d/%d Zoom:%d%% Diff:%d/%d %dx%dpx %dbpp ",
 			m_pImgMergeWindow->GetCurrentPage(pane) + 1,
 			m_pImgMergeWindow->GetPageCount(pane),
 			static_cast<int>(m_pImgMergeWindow->GetZoom() * 100),
@@ -309,7 +339,7 @@ void OnChildPaneEvent(const IImgMergeWindow::Event& evt)
 	{
 		HMENU hPopup = LoadMenu(m_hInstance, MAKEINTRESOURCE(IDR_POPUPMENU));
 		HMENU hSubMenu = GetSubMenu(hPopup, 0);
-		TrackPopupMenu(hSubMenu, TPM_LEFTALIGN, evt.x, evt.y, 0, m_hWnd, NULL); 
+		TrackPopupMenu(hSubMenu, TPM_LEFTALIGN, evt.x, evt.y, 0, m_hWnd, NULL);
 	}
 	else if (evt.eventType == IImgMergeWindow::KEYDOWN)
 	{
@@ -336,30 +366,27 @@ void OnChildPaneEvent(const IImgMergeWindow::Event& evt)
 	}
 }
 
-bool GenerateHTMLReport(const wchar_t *filename)
+bool GenerateHTMLReport(const std::filesystem::path &filename)
 {
-	wchar_t imgdir[MAX_PATH], imgdir_full[MAX_PATH], imgfilepath[3][MAX_PATH], difffilename[3][MAX_PATH];
-	char imgfilepath_utf8[3][MAX_PATH], difffilename_utf8[3][MAX_PATH];
-	wcscpy_s(imgdir_full, filename);
-	PathRemoveExtensionW(imgdir_full);
-	PathAddExtensionW(imgdir_full, L".files");
-	wcscpy_s(imgdir, PathFindFileName(imgdir_full));
-	CreateDirectoryW(imgdir_full, NULL);
+	std::filesystem::path imgdir_full = filename;
+	imgdir_full.replace_extension(".files");
+	std::filesystem::path imgdir = imgdir_full.filename();
+	std::filesystem::create_directory(imgdir_full);
+	std::filesystem::path imgfilepath[3], difffilename[3];
+	std::filesystem::path imgfilepath_utf8[3], difffilename_utf8[3];
 	for (int i = 0; i < m_pImgMergeWindow->GetPaneCount(); ++i)
 	{
-		wcscpy_s(imgfilepath[i], m_pImgMergeWindow->GetFileName(i));
-		WideCharToMultiByte(CP_UTF8, 0, imgfilepath[i], -1, imgfilepath_utf8[i], sizeof(imgfilepath_utf8[i]), NULL, NULL);
-		wsprintfW(difffilename[i], L"%s/%d.png", imgdir, i + 1);
-		WideCharToMultiByte(CP_UTF8, 0, difffilename[i], -1, difffilename_utf8[i], sizeof(difffilename_utf8[i]), NULL, NULL);
-		wchar_t tmp[MAX_PATH];
-		wsprintfW(tmp, L"%s\\%d.png", imgdir_full, i + 1);
+		imgfilepath[i] = m_pImgMergeWindow->GetFileName(i);
+		difffilename[i] = imgdir / (std::to_string(i + 1) + ".png");
+		const std::filesystem::path tmp =
+		 	imgdir_full / (std::to_string(i + 1) + ".png");
 		m_pImgMergeWindow->SaveDiffImageAs(i, tmp);
 	}
 	std::ofstream fout;
 	try
 	{
 		fout.open(filename, std::ios::out | std::ios::trunc);
-		fout << 
+		fout <<
 			"<!DOCTYPE html>" << std::endl <<
 			"<html>" << std::endl <<
 			"<head>" << std::endl <<
@@ -377,11 +404,11 @@ bool GenerateHTMLReport(const wchar_t *filename)
 			"<tr>" << std::endl;
 		for (int i = 0; i < m_pImgMergeWindow->GetPaneCount(); ++i)
 			fout << "<th class=\"title\">" << imgfilepath_utf8[i] << "</th>" << std::endl;
-		fout << 
+		fout <<
 			"</tr>" << std::endl <<
 			"<tr>" << std::endl;
 		for (int i = 0; i < m_pImgMergeWindow->GetPaneCount(); ++i)
-			fout << "<td><div class=\"img\"><img src=\"" << difffilename_utf8[i] << 
+			fout << "<td><div class=\"img\"><img src=\"" << difffilename_utf8[i] <<
 			"\" alt=\"" << difffilename_utf8[i] << "\"></div></td>" << std::endl;
 		fout <<
 			"</tr>" << std::endl <<
@@ -398,12 +425,12 @@ bool GenerateHTMLReport(const wchar_t *filename)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	switch (message) 
+	switch (message)
 	{
 	case WM_CREATE:
-		m_hwndStatusBar = CreateWindowEx(0, 
-			STATUSCLASSNAME, NULL, 
-			WS_CHILD | SBARS_SIZEGRIP | CCS_BOTTOM | WS_VISIBLE, 
+		m_hwndStatusBar = CreateWindowEx(0,
+			STATUSCLASSNAME, NULL,
+			WS_CHILD | SBARS_SIZEGRIP | CCS_BOTTOM | WS_VISIBLE,
 			0, 0, 0, 0, hWnd, (HMENU)1000, m_hInstance, NULL);
 		m_pImgMergeWindow = WinIMerge_CreateWindow(hInstDLL, hWnd);
 		m_pImgMergeWindow->AddEventListener(OnChildPaneEvent, NULL);
@@ -440,7 +467,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_COMMAND:
 	{
-		int wmId    = LOWORD(wParam); 
+		int wmId    = LOWORD(wParam);
 		switch (wmId)
 		{
 		case ID_FILE_NEW:
@@ -463,7 +490,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			ofn.nMaxFileTitle = sizeof(szFile);
 			ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 			ofn.lpstrTitle = L"Open File";
-			std::wstring filename[3];
+			std::array<std::filesystem::path, 3> filename;
 			wchar_t title[256];
 			int nImages = (wmId - ID_FILE_OPEN) + 2;
 			int i;
@@ -477,7 +504,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					break;
 			}
 			if (nImages == i)
-				OpenImages(hWnd, nImages, filename);
+				OpenImages(hWnd, nImages, filename.data());
 			break;
 		}
 		case ID_FILE_SAVE:
@@ -791,7 +818,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		case ID_HELP_ABOUT:
-			MessageBoxW(hWnd, 
+			MessageBoxW(hWnd,
 				L"WinIMerge\n\n"
 				L"(c) 2014-2021 sdottaka@users.sourceforge.net All rights reserved.\n\n"
 				L"This software uses the FreeImage open source image library. \n"
@@ -843,7 +870,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		PostMessage(m_pImgMergeWindow->GetHWND(), message, wParam, lParam);
 		break;
 	case WM_DESTROY:
-		WinIMerge_DestroyWindow(m_pImgMergeWindow);	
+		WinIMerge_DestroyWindow(m_pImgMergeWindow);
 		PostQuitMessage(0);
 		break;
 	default:

@@ -19,7 +19,7 @@ winimergelib = library(
     winimergelib_rc,
     version_header,
     include_directories : [winimergelib_inc],
-    dependencies : [freeimage_dep],
+    dependencies : [freeimage_dep, boost_dep],
     vs_module_defs : 'WinIMergeLib.def'
 )
 

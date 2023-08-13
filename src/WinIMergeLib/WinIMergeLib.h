@@ -19,6 +19,7 @@
 
 #include <Windows.h>
 #include <wtypes.h>
+#include <filesystem>
 
 struct IImgMergeWindow
 {
@@ -29,7 +30,7 @@ struct IImgMergeWindow
 		OVERLAY_NONE = 0, OVERLAY_XOR, OVERLAY_ALPHABLEND, OVERLAY_ALPHABLEND_ANIM
 	};
 	enum EVENT_TYPE {
-		LBUTTONDOWN = 0, LBUTTONUP, LBUTTONDBLCLK, 
+		LBUTTONDOWN = 0, LBUTTONUP, LBUTTONDBLCLK,
 		RBUTTONDOWN,     RBUTTONUP, RBUTTONDBLCLK,
 		MOUSEMOVE, MOUSEWHEEL, CONTEXTMENU,
 		KEYDOWN, KEYUP,
@@ -62,14 +63,23 @@ struct IImgMergeWindow
 		int diffIndex;
 	};
 	typedef void (*EventListenerFunc)(const Event& evt);
-	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2) = 0;
-	virtual bool OpenImages(const wchar_t *filename1, const wchar_t *filename2, const wchar_t *filename3) = 0;
+	virtual bool OpenImages(
+		const std::filesystem::path &filename1,
+		const std::filesystem::path &filename2) = 0;
+	virtual bool OpenImages(
+		const std::filesystem::path &filename1,
+		const std::filesystem::path &filename2,
+		const std::filesystem::path &filename3) = 0;
 	virtual bool ReloadImages() = 0;
 	virtual bool SaveImages() = 0;
 	virtual bool SaveImage(int pane) = 0;
-	virtual bool SaveImageAs(int pane, const wchar_t *filename) = 0;
-	virtual bool SaveDiffImageAs(int pane, const wchar_t *filename) = 0;
-	virtual const wchar_t *GetFileName(int pane) = 0;
+	virtual bool SaveImageAs(
+		int pane,
+		const std::filesystem::path &filename) = 0;
+	virtual bool SaveDiffImageAs(
+		int pane,
+		const std::filesystem::path &filename) = 0;
+	virtual const std::filesystem::path &GetFileName(int pane) = 0;
 	virtual int  GetPaneCount() const = 0;
 	virtual RECT GetPaneWindowRect(int pane) const = 0;
 	virtual RECT GetWindowRect() const = 0;
@@ -123,7 +133,7 @@ struct IImgMergeWindow
 	virtual bool FirstConflict() = 0;
 	virtual bool LastConflict() = 0;
 	virtual bool NextConflict() = 0;
-	virtual bool PrevConflict() = 0; 
+	virtual bool PrevConflict() = 0;
 	virtual bool SelectDiff(int diffIndex) = 0;
 	virtual int  GetNextDiffIndex() const = 0;
 	virtual int  GetPrevDiffIndex() const = 0;

@@ -27,6 +27,8 @@
 #include "Ocr.hpp"
 #include "WinIMergeLib.h"
 
+#include <filesystem>
+#include <array>
 
 namespace
 {
@@ -60,7 +62,7 @@ class CImgMergeWindow : public IImgMergeWindow
 	};
 
 public:
-	CImgMergeWindow() : 
+	CImgMergeWindow() :
 		  m_nImages(0)
 		, m_hWnd(NULL)
 		, m_hInstance(NULL)
@@ -112,7 +114,7 @@ public:
 		m_listener.push_back(EventListenerInfo(func, userdata));
 	}
 
-	const wchar_t *GetFileName(int pane) override
+	const std::filesystem::path &GetFileName(const int pane) override
 	{
 		return m_buffer.GetFileName(pane);
 	}
@@ -372,7 +374,7 @@ public:
 	{
 		return m_buffer.GetDiffBlockSize();
 	}
-	
+
 	void SetDiffBlockSize(int blockSize) override
 	{
 		m_buffer.SetDiffBlockSize(blockSize);
@@ -585,7 +587,7 @@ public:
 			ScrollToDiff(m_buffer.GetCurrentDiffIndex());
 		return result;
 	}
-	
+
 	int  GetNextDiffIndex() const override
 	{
 		return m_buffer.GetNextDiffIndex();
@@ -878,7 +880,9 @@ public:
 		return bSucceeded;
 	}
 
-	bool OpenImages(int nImages, const wchar_t * const filename[3])
+	bool OpenImages(
+		const size_t nImages,
+		const std::filesystem::path *const filename)
 	{
 		CloseImages();
 		m_nImages = nImages;
@@ -910,16 +914,26 @@ public:
 		return bSucceeded;
 	}
 
-	bool OpenImages(const wchar_t *filename1, const wchar_t *filename2) override
+	bool OpenImages(
+		const std::filesystem::path &filename1,
+		const std::filesystem::path &filename2) override
 	{
-		const wchar_t *filenames[] = {filename1, filename2};
-		return OpenImages(2, filenames);
+		const std::array<std::filesystem::path, 2> filenames{
+			filename1,
+			filename2};
+		return OpenImages(filenames.size(), filenames.data());
 	}
 
-	bool OpenImages(const wchar_t *filename1, const wchar_t *filename2, const wchar_t *filename3) override
+	bool OpenImages(
+		const std::filesystem::path &filename1,
+		const std::filesystem::path &filename2,
+		const std::filesystem::path &filename3) override
 	{
-		const wchar_t *filenames[] = {filename1, filename2, filename3};
-		return OpenImages(3, filenames);
+		const std::array<const std::filesystem::path, 3> filenames{
+			filename1,
+			filename2,
+			filename3};
+		return OpenImages(filenames.size(), filenames.data());
 	}
 
 	bool ReloadImages() override
@@ -941,7 +955,9 @@ public:
 		return m_buffer.SaveImages();
 	}
 
-	bool SaveImageAs(int pane, const wchar_t *filename) override
+	bool SaveImageAs(
+		const int pane,
+		const std::filesystem::path &filename) override
 	{
 		return m_buffer.SaveImageAs(pane, filename);
 	}
@@ -957,7 +973,9 @@ public:
 		return true;
 	}
 
-	bool SaveDiffImageAs(int pane, const wchar_t *filename) override
+	bool SaveDiffImageAs(
+		const int pane,
+		const std::filesystem::path &filename) override
 	{
 		return m_buffer.SaveDiffImageAs(pane, filename);
 	}
@@ -1193,7 +1211,7 @@ private:
 	ATOM MyRegisterClass(HINSTANCE hInstance)
 	{
 		WNDCLASSEXW wcex = {0};
-		wcex.cbSize         = sizeof(WNDCLASSEX); 
+		wcex.cbSize         = sizeof(WNDCLASSEX);
 		wcex.style			= CS_HREDRAW | CS_VREDRAW;
 		wcex.lpfnWndProc	= (WNDPROC)CImgMergeWindow::WndProc;
 		wcex.cbClsExtra		= 0;
@@ -1260,8 +1278,8 @@ private:
 
 		if (!m_bHorizontalSplit)
 		{
-			int minx = rc[m_nDraggingSplitter].left + 32; 
-			int maxx = rc[m_nDraggingSplitter + 1].right - 32; 
+			int minx = rc[m_nDraggingSplitter].left + 32;
+			int maxx = rc[m_nDraggingSplitter + 1].right - 32;
 			if (x < minx)
 				rc[m_nDraggingSplitter].right = minx;
 			else if (x > maxx)
@@ -1279,8 +1297,8 @@ private:
 		else
 		{
 			rc[m_nDraggingSplitter].bottom = y;
-			int miny = rc[m_nDraggingSplitter].top + 32; 
-			int maxy = rc[m_nDraggingSplitter + 1].bottom - 32; 
+			int miny = rc[m_nDraggingSplitter].top + 32;
+			int maxy = rc[m_nDraggingSplitter + 1].bottom - 32;
 			if (y < miny)
 				rc[m_nDraggingSplitter].bottom = miny;
 			else if (y > maxy)
@@ -1302,22 +1320,22 @@ private:
 
 	void DrawXorBar(HDC hdc, int x1, int y1, int width, int height)
 	{
-		static const WORD _dotPatternBmp[8] = 
-		{ 
-			0x00aa, 0x0055, 0x00aa, 0x0055, 
+		static const WORD _dotPatternBmp[8] =
+		{
+			0x00aa, 0x0055, 0x00aa, 0x0055,
 			0x00aa, 0x0055, 0x00aa, 0x0055
 		};
 
 		HBITMAP hbm = CreateBitmap(8, 8, 1, 1, _dotPatternBmp);
 		HBRUSH hbr = CreatePatternBrush(hbm);
-		
+
 		SetBrushOrgEx(hdc, x1, y1, 0);
 		HBRUSH hbrushOld = (HBRUSH)SelectObject(hdc, hbr);
-		
+
 		PatBlt(hdc, x1, y1, width, height, PATINVERT);
-		
+
 		SelectObject(hdc, hbrushOld);
-		
+
 		DeleteObject(hbr);
 		DeleteObject(hbm);
 	}
@@ -1353,7 +1371,7 @@ private:
 		for (int i = 0; i < m_nImages; ++i)
 			m_imgWindow[i].SetWindowRect(rects[i]);
 	}
-	
+
 	void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 	{
 		if (nChar == VK_ESCAPE)
@@ -1411,8 +1429,8 @@ private:
 		}
 		else
 		{
-			DrawXorBar(hdc, 1, m_oldSplitPosY - 2, m_imgWindow[0].GetWindowRect().right, 4);	
-			DrawXorBar(hdc, 1, y              - 2, m_imgWindow[0].GetWindowRect().right, 4);	
+			DrawXorBar(hdc, 1, m_oldSplitPosY - 2, m_imgWindow[0].GetWindowRect().right, 4);
+			DrawXorBar(hdc, 1, y              - 2, m_imgWindow[0].GetWindowRect().right, 4);
 		}
 		m_oldSplitPosX = x;
 		m_oldSplitPosY = y;
@@ -1695,10 +1713,10 @@ private:
 			RECT rc = GetPreprocessedImageRect(evt.pane);
 			int width = m_buffer.GetImageWidth(evt.pane);
 			int height = m_buffer.GetImageHeight(evt.pane);
-			if (m_draggingModeCurrent == DRAGGING_MODE::RESIZE_WIDTH || 
+			if (m_draggingModeCurrent == DRAGGING_MODE::RESIZE_WIDTH ||
 			    m_draggingModeCurrent == DRAGGING_MODE::RESIZE_BOTH)
 				width += pt.x - rc.right;
-			if (m_draggingModeCurrent == DRAGGING_MODE::RESIZE_HEIGHT || 
+			if (m_draggingModeCurrent == DRAGGING_MODE::RESIZE_HEIGHT ||
 			    m_draggingModeCurrent == DRAGGING_MODE::RESIZE_BOTH)
 				height += pt.y - rc.bottom;
 			if (width > 0 && height > 0)
@@ -1884,7 +1902,7 @@ private:
 			if (pImgWnd->m_imgWindow[i].GetHWND() == hwnd)
 				break;
 		evt.pane = i;
-		evt.flags = (unsigned)wParam; 
+		evt.flags = (unsigned)wParam;
 		evt.x = (int)(short)LOWORD(lParam);
 		evt.y = (int)(short)HIWORD(lParam);
 		switch(iMsg)

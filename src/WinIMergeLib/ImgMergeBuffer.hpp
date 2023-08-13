@@ -21,7 +21,7 @@
 
 struct UndoRecord
 {
-	UndoRecord(int pane, Image *oldbitmap, Image *newbitmap, const int modcountnew[3]) : 
+	UndoRecord(int pane, Image *oldbitmap, Image *newbitmap, const int modcountnew[3]) :
 		pane(pane), oldbitmap(oldbitmap), newbitmap(newbitmap)
 	{
 		for (int i = 0; i < 3; ++i)
@@ -401,7 +401,9 @@ public:
 			return false;
 		if (!m_undoRecords.is_modified(pane))
 			return true;
-		bool result = SaveImageAs(pane, (m_filename[pane] + (m_imgConverter[pane].isValid() ? L".png" : L"")).c_str());
+		std::filesystem::path filename = m_filename[pane];
+		filename += m_imgConverter[pane].isValid() ? ".png" : "";
+		const bool result = SaveImageAs(pane, filename);
 		if (result)
 			m_undoRecords.save(pane);
 		return result;
@@ -415,7 +417,7 @@ public:
 		return true;
 	}
 
-	bool SaveImageAs(int pane, const wchar_t *filename)
+	bool SaveImageAs(const int pane, const std::filesystem::path &filename)
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
@@ -526,7 +528,7 @@ protected:
 			return;
 
 		for (int i = top; i < bottom; ++i)
-			memcpy(m_imgOrig32[pane].scanLine(i) + left * 4, 
+			memcpy(m_imgOrig32[pane].scanLine(i) + left * 4,
 				image.scanLine(i - y) + (left - x) * 4, (right - left) * 4);
 	}
 
@@ -659,4 +661,3 @@ private:
 	bool m_bRO[3];
 	UndoRecords m_undoRecords;
 };
-

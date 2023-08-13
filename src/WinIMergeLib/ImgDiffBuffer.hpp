@@ -20,6 +20,8 @@
 #include "image.hpp"
 #include "ImgConverter.hpp"
 #include "Diff.hpp"
+#include <array>
+#include <filesystem>
 #include <string>
 #include <algorithm>
 #include <cstdio>
@@ -144,9 +146,9 @@ struct LineDiffInfo
 
 	LineDiffInfo(const LineDiffInfo& src) :
 		begin{ src.begin[0], src.begin[1], src.begin[2] },
-		end{ src.end[0], src.end[1], src.end[2] }, 
+		end{ src.end[0], src.end[1], src.end[2] },
 		dbegin(src.dbegin),
-		dend{ src.dend[0], src.dend[1], src.dend[2] }, 
+		dend{ src.dend[0], src.dend[1], src.dend[2] },
 		dendmax(src.dendmax), op(src.op)
 	{}
 
@@ -434,7 +436,7 @@ public:
 	bool equals(const char* scanline1, unsigned size1,
 		const char* scanline2, unsigned size2) const
 	{
-		return alineEquals(reinterpret_cast<const unsigned char *>(scanline1), size1 / 4, 
+		return alineEquals(reinterpret_cast<const unsigned char *>(scanline1), size1 / 4,
 			reinterpret_cast<const unsigned char *>(scanline2), size2 / 4, m_colorDistanceThreshold);
 	}
 	unsigned long hash(const char* scanline) const
@@ -488,11 +490,11 @@ public:
 	enum DIFF_ALGORITHM {
 		MYERS_DIFF, MINIMAL_DIFF, PATIENCE_DIFF, HISTOGRAM_DIFF, NONE_DIFF
 	};
-	
+
 	enum { BLINK_TIME = 800 };
 	enum { OVERLAY_ALPHABLEND_ANIM_TIME = 1000 };
 
-	CImgDiffBuffer() : 
+	CImgDiffBuffer() :
 		  m_nImages(0)
 		, m_showDifferences(true)
 		, m_blinkDifferences(false)
@@ -526,11 +528,9 @@ public:
 		CloseImages();
 	}
 
-	const wchar_t *GetFileName(int pane)
+	const std::filesystem::path &GetFileName(const int pane)
 	{
-		if (pane < 0 || pane >= m_nImages)
-			return NULL;
-		return m_filename[pane].c_str();
+		return m_filename[pane];
 	}
 
 	int GetPaneCount() const
@@ -706,7 +706,7 @@ public:
 	{
 		return m_diffBlockSize;
 	}
-	
+
 	void SetDiffBlockSize(int blockSize)
 	{
 		if (m_diffBlockSize == blockSize)
@@ -1050,7 +1050,7 @@ public:
 		RefreshImages();
 		return true;
 	}
-	
+
 	int  GetNextDiffIndex() const
 	{
 		if (m_diffCount == 0 || m_currentDiffIndex >= m_diffCount - 1)
@@ -1159,12 +1159,13 @@ public:
 		}
 	}
 
-	bool OpenImages(int nImages, const wchar_t * const filename[3])
+	bool OpenImages(
+		const size_t nImages,
+		const std::filesystem::path *const filename)
 	{
 		CloseImages();
 		m_nImages = nImages;
-		for (int i = 0; i < nImages; ++i)
-			m_filename[i] = filename[i];
+		std::copy_n(filename, nImages, m_filename.begin());
 		return LoadImages();
 	}
 
@@ -1184,7 +1185,7 @@ public:
 		return true;
 	}
 
-	bool SaveDiffImageAs(int pane, const wchar_t *filename)
+	bool SaveDiffImageAs(const int pane, const std::filesystem::path &filename)
 	{
 		if (pane < 0 || pane >= m_nImages)
 			return false;
@@ -1248,7 +1249,7 @@ public:
 
 	int GetDiffIndexFromPoint(int x, int y) const
 	{
-		if (x > 0 && y > 0 && 
+		if (x > 0 && y > 0 &&
 			x < static_cast<int>(m_imgDiff[0].width()) &&
 			y < static_cast<int>(m_imgDiff[0].height()))
 		{
@@ -1625,7 +1626,7 @@ protected:
 
 		for (unsigned by = 0; by < diff.height(); ++by)
 		{
-			unsigned bsy = (hmax - by * m_diffBlockSize) >= m_diffBlockSize ? m_diffBlockSize : (hmax - by * m_diffBlockSize); 
+			unsigned bsy = (hmax - by * m_diffBlockSize) >= m_diffBlockSize ? m_diffBlockSize : (hmax - by * m_diffBlockSize);
 			for (unsigned i = 0; i < bsy; ++i)
 			{
 				unsigned y = by * m_diffBlockSize + i;
@@ -1675,7 +1676,7 @@ protected:
 			}
 		}
 	}
-		
+
 	void FloodFill8Directions(DiffBlocks& data, int x, int y, unsigned val)
 	{
 		std::vector<Point<int> > stack;
@@ -1765,7 +1766,7 @@ protected:
 					++counter[diffIndex].detc;
 			}
 		}
-		
+
 		for (size_t i = 0; i < m_diffInfos.size(); ++i)
 		{
 			int op;
@@ -1800,7 +1801,7 @@ protected:
 		x -= m_offset[pane].x;
 		y -= m_offset[pane].y;
 
-		if (m_insertionDeletionDetectionMode == INSERTION_DELETION_DETECTION_NONE || 
+		if (m_insertionDeletionDetectionMode == INSERTION_DELETION_DETECTION_NONE ||
 			m_lineDiffInfos.size() == 0 ||
 			x < 0 || x >= static_cast<int>(m_imgPreprocessed[pane].width()) ||
 			y < 0 || y >= static_cast<int>(m_imgPreprocessed[pane].height()))
@@ -1939,7 +1940,7 @@ protected:
 				scanline_dst[(x + offset_x) * 4 + 2] = scanline_src[x * 4 + 2];
 				scanline_dst[(x + offset_x) * 4 + 3] = scanline_src[x * 4 + 3];
 			}
-		}	
+		}
 	}
 
 	void XorImages2(int src, int dst)
@@ -1957,7 +1958,7 @@ protected:
 				scanline_dst[(x + offset_x) * 4 + 1] ^= scanline_src[x * 4 + 1];
 				scanline_dst[(x + offset_x) * 4 + 2] ^= scanline_src[x * 4 + 2];
 			}
-		}	
+		}
 	}
 
 	void AlphaBlendImages2(int src, int dst)
@@ -1992,7 +1993,7 @@ protected:
 				scanline_dst[(x + offset_x) * 4 + 2] = static_cast<unsigned char>(scanline_dst[(x + offset_x) * 4 + 2] * (1 - overlayAlpha) + scanline_src[x * 4 + 2] * overlayAlpha);
 				scanline_dst[(x + offset_x) * 4 + 3] = static_cast<unsigned char>(scanline_dst[(x + offset_x) * 4 + 3] * (1 - overlayAlpha) + scanline_src[x * 4 + 3] * overlayAlpha);
 			}
-		}	
+		}
 	}
 
 	void CopyImageWithGhostLine(const std::vector<LineDiffInfo>& lineDiffInfos, int npanes, Image src[], Image dst[])
@@ -2192,7 +2193,7 @@ protected:
 			}
 			return true;
 		};
-		
+
 		TemporaryTransformation tmp(*this);
 
 		std::vector<LineDiffInfo> lineDiffInfos10, lineDiffInfos12;
@@ -2248,7 +2249,7 @@ protected:
 	Image m_imgDiff[3];
 	Image m_imgDiffMap;
 	ImgConverter m_imgConverter[3];
-	std::wstring m_filename[3];
+	std::array<std::filesystem::path, 3> m_filename;
 	bool m_showDifferences;
 	bool m_blinkDifferences;
 	float m_vectorImageZoomRatio;

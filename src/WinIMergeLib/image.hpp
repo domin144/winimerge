@@ -19,7 +19,9 @@
 #pragma warning(disable: 4819)
 
 #include "FreeImagePlus.h"
+#include <boost/nowide/convert.hpp>
 #include <algorithm>
+#include <filesystem>
 #include <string>
 #include <map>
 
@@ -292,9 +294,13 @@ public:
 			return true;
 		return image_.convertTo8Bits() && image_.convertTo32Bits();
 	}
-	bool load(const std::wstring& filename) { return !!image_.loadU(filename.c_str()); }
+	bool load(const std::filesystem::path& filename)
+	{
+		return !!image_.loadU(
+			boost::nowide::widen(filename.u8string()).c_str());
+	}
 	bool isSaveSupported() const { return FreeImage_FIFSupportsWriting(image_.getFIF()); }
-	bool save(const std::wstring& filename)
+	bool save(const std::filesystem::path& filename)
 	{
 #ifdef _WIN32
 		return !!image_.saveU(filename.c_str());
@@ -405,8 +411,14 @@ public:
 	bool close() { return !!multi_.close(); }
 	bool isValid() const { return !!multi_.isValid(); }
 	int getPageCount() const { return multi_.getPageCount(); }
-	bool load(const std::wstring& filename) { return !!multi_.openU(filename.c_str(), FALSE, FALSE); }
-	bool save(const std::wstring& filename) { return !!multi_.saveU(filename.c_str()); }
+	bool load(const std::filesystem::path& filename)
+	{
+		return !!multi_.openU(filename.c_str(), FALSE, FALSE);
+	}
+	bool save(const std::filesystem::path& filename)
+	{
+		return !!multi_.saveU(filename.c_str());
+	}
 	Image getImage(int page)
 	{
 		FIBITMAP *bitmaptmp, *bitmap;

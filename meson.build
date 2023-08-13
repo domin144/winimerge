@@ -13,5 +13,6 @@ project(
 add_project_arguments('-D_UNICODE', '-DUNICODE', language : ['c', 'cpp'])
 
 freeimage_dep = dependency('freeimage', version : '>=3.18.0')
+boost_dep = dependency('boost', modules : ['nowide'], version : '>=1.73')
 
 subdir('src')
