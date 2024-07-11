@@ -12,12 +12,18 @@ class WinIMergeRecipe(ConanFile):
     def requirements(self):
         self.requires("freeimage/[>=3.18]")
         self.requires("openimageio/[>=2.2]")
-        # jasper 4.2.0 does not compile with new VC++
-        self.requires("jasper/[>=4.2.0]", override=True)
 
         # Boost.Nowide
         self.requires("boost/[>=1.73]")
         self.requires("gtest/[>=1.12]")
+        
+        # Hacks:
+        # Resolve conflict
+        self.requires("openexr/[>=3.2.3]", override=True)
+        # Resolve conflict
+        self.requires("libpng/[>=1.6.42]", override=True)
+        # Jasper 4.0.0 does not build with Visual Studio C++ 2022
+        self.requires("jasper/[>=4.2.0]", override=True)
 
     def build_requirements(self):
         self.tool_requires("meson/[>=1.1.0]")
@@ -26,6 +32,11 @@ class WinIMergeRecipe(ConanFile):
     def configure(self):
         if self.settings.os == "Windows":
             self.options["boost*"].layout = "tagged"
+        
+        # Hacks:
+        self.options["freeimage/*"].with_tiff = False
+        self.options["freeimage/*"].with_openexr = False
+        self.options["openimageio/*"].with_ffmpeg = False
 
     def build(self):
         meson = Meson(self)
