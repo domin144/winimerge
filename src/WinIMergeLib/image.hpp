@@ -343,14 +343,13 @@ public:
 	Image(OIIO::ImageBuf&& image) : image_(std::move(image)) {}
 	bool load(const std::filesystem::path& filename)
 	{
-		return !!image_.loadU(
-			boost::nowide::widen(filename.u8string()).c_str());
+		image_.reset(filename.u8string());
+		return true;
 	}
 	bool isSaveSupported() const { return true; }
 	bool save(const std::filesystem::path& filename)
 	{
-		image_.reset(filename);
-		return !image_.has_error() && image_.make_writable();
+		return image_.write(filename.u8string());
 	}
 	bool save(const std::string& filename)
 	{
@@ -360,7 +359,10 @@ public:
 	unsigned width() const  { return image_.spec().width; }
 	unsigned height() const { return image_.spec().height; }
 	void clear() { image_.reset(); }
-	void setSize(int w, int h) { image_.reset(OIIO::ImageSpec{w, h, 4}); }
+	void setSize(int w, int h)
+	{
+		image_.reset(OIIO::ImageSpec{w, h, channelsCount});
+	}
 	const OIIO::ImageBuf *getImage() const { return &image_; }
 	OIIO::ImageBuf *getFipImage() { return &image_; }
 	Color pixel(int x, int y) const
@@ -430,6 +432,11 @@ public:
 			metadata[attribute.name().string()] = attribute.get_string();
 		}
 		return metadata;
+	}
+
+	void copyFromBitmap(const HBITMAP bitmap)
+	{
+		image_.reset(OIIO::ImageSpec{});
 	}
 
 	static float valueR(Color color) { return color[0]; }
