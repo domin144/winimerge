@@ -324,6 +324,10 @@ public:
 		image_.getPixelColor(x, image_.getHeight() - y - 1, &color);
 		return color;
 	}
+	void setPixel(int x, int y, Color color)
+	{
+		image_.setPixelColor(x, image_.getHeight() - y - 1, &color);
+	}
 	bool copySubImage(Image& image, int x, int y, int x2, int y2) const
 	{
 		return !!image_.copySubImage(image.image_, x, y, x2, y2);

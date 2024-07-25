@@ -8,5 +8,5 @@ test(
     'winimergelib test',
     executable(
         'image_test',
-        ['image_test.cpp'],
+        ['image_test.cpp', 'SampleImages.cpp'],
         dependencies : [winimergelib_dep, gtest_dep]))
