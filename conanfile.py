@@ -16,6 +16,7 @@ class WinIMergeRecipe(ConanFile):
 
         # Boost.Nowide
         self.requires("boost/[>=1.73]")
+        self.requires("gtest/[>=1.12]")
 
     def build_requirements(self):
         self.tool_requires("meson/[>=1.1.0]")
