@@ -2,11 +2,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-gtest_dep = dependency('gtest', main : true)
+gtest_dep = dependency('gtest', main: false)
 
 test(
     'winimergelib test',
     executable(
         'image_test',
-        ['image_test.cpp', 'SampleImages.cpp'],
-        dependencies : [winimergelib_dep, gtest_dep]))
+        ['main.cpp', 'image_test.cpp', 'SampleImages.cpp'],
+        dependencies: [winimergelib_dep, gtest_dep],
+    ),
+)
