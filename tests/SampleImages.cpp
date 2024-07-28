@@ -8,30 +8,29 @@
 #include <cstdint>
 
 namespace {
-RGBQUAD makeRgbQuad(std::uint8_t r, std::uint8_t g, std::uint8_t b)
+Image::Color makeRgbQuad(const std::uint8_t r, const std::uint8_t g, const std::uint8_t b)
 {
-	RGBQUAD result {};
-	result.rgbRed = r;
-	result.rgbGreen = g;
-	result.rgbBlue = b;
-	result.rgbReserved = 0xff;
-	return result;
+	return {
+		static_cast<float>(r/255.0),
+		static_cast<float>(g/255.0),
+		static_cast<float>(b/255.0),
+		1.0};
 };
 
-RGBQUAD black = makeRgbQuad(0x00, 0x00, 0x00);
-RGBQUAD yellow = makeRgbQuad(0x22, 0x77, 0x77);
-RGBQUAD blue = makeRgbQuad(0x77, 0x22, 0x22);
-RGBQUAD red = makeRgbQuad(0xff, 0x00, 0x00);
-RGBQUAD cyan = makeRgbQuad(0x00, 0xff, 0xff);
-RGBQUAD magenta = makeRgbQuad(0xff, 0x00, 0xff);
-RGBQUAD grey = makeRgbQuad(0x80, 0x80, 0x80);
-RGBQUAD lightGrey = makeRgbQuad(0xd0, 0xd0, 0xd0);
+Image::Color black = makeRgbQuad(0x00, 0x00, 0x00);
+Image::Color yellow = makeRgbQuad(0x22, 0x77, 0x77);
+Image::Color blue = makeRgbQuad(0x77, 0x22, 0x22);
+Image::Color red = makeRgbQuad(0xff, 0x00, 0x00);
+Image::Color cyan = makeRgbQuad(0x00, 0xff, 0xff);
+Image::Color magenta = makeRgbQuad(0xff, 0x00, 0xff);
+Image::Color grey = makeRgbQuad(0x80, 0x80, 0x80);
+Image::Color lightGrey = makeRgbQuad(0xd0, 0xd0, 0xd0);
 
 struct Circle
 {
 	POINT centre;
 	POINT radius;
-	RGBQUAD color;
+	Image::Color color;
 };
 
 Image makeCircles(const std::vector<Circle>& circles)
@@ -57,8 +56,7 @@ Image makeCircles(const std::vector<Circle>& circles)
 				auto& circle = *iter;
 				if (isInCircle({ix, iy}, circle))
 				{
-					RGBQUAD color = circle.color;
-					result.setPixel(ix, height - iy - 1, color);
+					result.setPixel(ix, height - iy - 1, circle.color);
 				}
 			}
 		}

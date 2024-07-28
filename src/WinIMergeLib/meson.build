@@ -26,5 +26,5 @@ winimergelib = library(
 winimergelib_dep = declare_dependency(
     link_with : winimergelib,
     include_directories : [winimergelib_inc],
-    dependencies : [freeimage_dep, boost_dep]
+    dependencies : [freeimage_dep, openimageio_dep, boost_dep]
 )

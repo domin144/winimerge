@@ -340,7 +340,8 @@ public:
 		pDeviceContext5->DrawSvgDocument(m_pSvgDocument.Get());
 		m_pDCRenderTarget->EndDraw();
 
-		img.getFipImage()->copyFromBitmap(hBitmap);
+		/* TODO: OIIO conversion */
+		// img.getFipImage()->copyFromBitmap(hBitmap);
 
 		SelectObject(hMemDC, hOldBitmap);
 		DeleteObject(hBitmap);
@@ -429,10 +430,11 @@ public:
 		if (FAILED(pFormatConverter->CopyPixels(&rc, imageWidth * 4, static_cast<unsigned>(buffer.size()), buffer.data())))
 			return;
 
-		fipImageEx* pImage = img.getFipImage();
-		pImage->setSize(FIT_BITMAP, imageWidth, imageHeight, 32);
-		for (unsigned y = 0; y < imageHeight; ++y)
-			memcpy(pImage->getScanLine(y), buffer.data() + (imageHeight - 1 - y) * imageWidth * 4, imageWidth * 4);
+		/* TODO: OIIO conversion */
+		// fipImageEx* pImage = img.getFipImage();
+		// pImage->setSize(FIT_BITMAP, imageWidth, imageHeight, 32);
+		// for (unsigned y = 0; y < imageHeight; ++y)
+		// 	memcpy(pImage->getScanLine(y), buffer.data() + (imageHeight - 1 - y) * imageWidth * 4, imageWidth * 4);
 	}
 
 	virtual unsigned getPageCount() const override
@@ -489,7 +491,8 @@ public:
 		pGraphics->ScaleTransform(zoom, zoom);
 		pGraphics->DrawImage(m_pMetafile.get(), 0, 0);
 		bitmap.GetHBITMAP({ 0, 0, 0, 0 }, &hBitmap);
-		img.getFipImage()->copyFromBitmap(hBitmap);
+		/* TODO: OIIO conversion */
+		// img.getFipImage()->copyFromBitmap(hBitmap);
 		DeleteObject(hBitmap);
 	}
 

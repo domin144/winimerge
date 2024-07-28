@@ -399,7 +399,9 @@ namespace
 	bool alineEquals(const Image& img1, const Image& img2,
 		unsigned y1, unsigned y2, double colorDistanceThreshold)
 	{
-		return alineEquals(img1.scanLine(y1), img1.width(), img2.scanLine(y2), img2.width(), colorDistanceThreshold);
+		// TODO: IOOI conversion
+		// return alineEquals(img1.scanLine(y1), img1.width(), img2.scanLine(y2), img2.width(), colorDistanceThreshold);
+		return false;
 	}
 }
 
@@ -422,9 +424,10 @@ public:
 		std::vector<BYTE> tmp(w * 4);
 		for (unsigned i = 0; i < h / 2; ++i)
 		{
-			memcpy(tmp.data(), m_img.scanLine(i), w * 4);
-			memcpy(const_cast<BYTE *>(m_img.scanLine(i)), m_img.scanLine(h - i - 1), w * 4);
-			memcpy(const_cast<BYTE *>(m_img.scanLine(h - i - 1)), tmp.data(), w * 4);
+			// TODO: OIIO conversion
+			// memcpy(tmp.data(), m_img.scanLine(i), w * 4);
+			// memcpy(const_cast<BYTE *>(m_img.scanLine(i)), m_img.scanLine(h - i - 1), w * 4);
+			// memcpy(const_cast<BYTE *>(m_img.scanLine(h - i - 1)), tmp.data(), w * 4);
 		}
 	}
 	unsigned size() const { return m_img.height() * m_img.width() * 4; }
@@ -1309,7 +1312,8 @@ public:
 					for (unsigned i = 0; i < bsy; ++i)
 					{
 						unsigned y = static_cast<unsigned>(by * diffMapBlockSizeH + i);
-						unsigned char *scanline = m_imgDiffMap.scanLine(y);
+						/* TODO: OIIO conversion */
+						unsigned char *scanline = /* m_imgDiffMap.scanLine(y)*/ nullptr;
 						unsigned bsx = static_cast<unsigned>(diffMapBlockSizeW + 1);
 						unsigned x = static_cast<unsigned>(bx * diffMapBlockSizeW);
 						if (x + bsx - 1 >= w)

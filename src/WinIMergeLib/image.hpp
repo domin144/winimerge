@@ -373,7 +373,7 @@ public:
 	}
 	void setPixel(int x, int y, Color color)
 	{
-		image_.setPixelColor(x, image_.getHeight() - y - 1, &color);
+		image_.setpixel(x, height() - y - 1, color.data());
 	}
 	bool copySubImage(Image& image, int x, int y, int x2, int y2) const
 	{
@@ -434,10 +434,10 @@ public:
 		return metadata;
 	}
 
-	void copyFromBitmap(const HBITMAP bitmap)
-	{
-		image_.reset(OIIO::ImageSpec{});
-	}
+	// void copyFromBitmap(const HBITMAP bitmap)
+	// {
+	// 	image_.reset(OIIO::ImageSpec{});
+	// }
 
 	static float valueR(Color color) { return color[0]; }
 	static float valueG(Color color) { return color[1]; }
